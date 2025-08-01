@@ -208,11 +208,11 @@
     async function loadMasterData() {
         try {
             const [regions, channels, suppliers, categories, salesmen] = await Promise.all([
-                fetch(`/api/deps/regions`).then(res => res.json()),
-                fetch(`/api/deps/channels`).then(res => res.json()),
-                fetch(`/api/deps/suppliers`).then(res => res.json()),
-                fetch(`/api/deps/categories`).then(res => res.json()),
-                fetch(`/api/deps/salesmen`).then(res => res.json())
+                fetch(`/api/v1/deps/regions`).then(res => res.json()),
+                fetch(`/api/v1/deps/channels`).then(res => res.json()),
+                fetch(`/api/v1/deps/suppliers`).then(res => res.json()),
+                fetch(`/api/v1/deps/categories`).then(res => res.json()),
+                fetch(`/api/v1/deps/salesmen`).then(res => res.json())
             ]);
             populateSelect("filter_region", regions.data, "id", "name");
             populateSelect("filter_channel", channels.data, "id", "name");
@@ -260,7 +260,7 @@
 
         const params = new URLSearchParams(getCurrentFilters());
         try {
-            const response = await fetch(`/api/targets/matrix?${params}`);
+            const response = await fetch(`/api/v1/targets/matrix?${params}`);
             if (!response.ok) throw new Error((await response.json()).message || 'Failed to load data.');
             
             const result = await response.json();

@@ -177,6 +177,7 @@
     console.log("🎯 TARGET PAGE SCRIPT LOADED - V3.1 FINAL");
 
     let isPeriodOpen = false;
+    let isMatrixLoaded = false;
 
     const apiOptions = {
         headers: {
@@ -253,6 +254,9 @@
             return;
         }
 
+        // Reset matrix loaded state
+        isMatrixLoaded = false;
+
         const loadBtn = document.getElementById("loadMatrixBtn");
         loadBtn.disabled = true;
         loadBtn.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Loading...`;
@@ -314,6 +318,7 @@
             });
         });
         document.getElementById("matrix-container").style.display = "block";
+        isMatrixLoaded = true;
     }
 
     function isClassificationCompatible(salesmanClass, supplierClass) {
@@ -370,6 +375,11 @@
         
         if (!year || !month) {
             showAlert("Please select Year and Month before exporting.", "warning");
+            return;
+        }
+
+        if (!isMatrixLoaded) {
+            showAlert("Please load the matrix first before exporting.", "warning");
             return;
         }
 
@@ -536,7 +546,21 @@
         }
     }
 
-    document.addEventListener("DOMContentLoaded", loadMasterData);
+    document.addEventListener("DOMContentLoaded", function() {
+        loadMasterData();
+        
+        // Add event listeners to reset matrix loaded state when filters change
+        const filterElements = ['target_year', 'target_month', 'filter_region', 'filter_channel', 'filter_supplier', 'filter_category', 'filter_salesman', 'filter_classification'];
+        
+        filterElements.forEach(id => {
+            const element = document.getElementById(id);
+            if (element) {
+                element.addEventListener('change', function() {
+                    isMatrixLoaded = false;
+                });
+            }
+        });
+    });
 </script>
 <?php $__env->stopPush(); ?>
 

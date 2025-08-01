@@ -65,6 +65,15 @@ class SalesmanController extends Controller
 
     public function destroy(Salesman $salesman)
     {
+        // Check if salesman has any sales targets
+        $targetsCount = \App\Models\SalesTarget::where('salesman_id', $salesman->id)->count();
+        
+        if ($targetsCount > 0) {
+            return response()->json([
+                'message' => "Cannot delete salesman '{$salesman->name}'. This salesman has {$targetsCount} sales target(s) assigned. Please reassign or delete the targets first."
+            ], 422);
+        }
+
         $salesman->delete();
 
         return response()->json([

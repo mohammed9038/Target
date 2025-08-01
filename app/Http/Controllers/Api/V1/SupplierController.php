@@ -59,6 +59,24 @@ class SupplierController extends Controller
 
     public function destroy(Supplier $supplier)
     {
+        // Check if supplier has any sales targets
+        $targetsCount = \App\Models\SalesTarget::where('supplier_id', $supplier->id)->count();
+        
+        if ($targetsCount > 0) {
+            return response()->json([
+                'message' => "Cannot delete supplier '{$supplier->name}'. This supplier has {$targetsCount} sales target(s) assigned. Please reassign or delete the targets first."
+            ], 422);
+        }
+
+        // Check if supplier has any categories
+        $categoriesCount = \App\Models\Category::where('supplier_id', $supplier->id)->count();
+        
+        if ($categoriesCount > 0) {
+            return response()->json([
+                'message' => "Cannot delete supplier '{$supplier->name}'. This supplier has {$categoriesCount} categor(ies) assigned. Please delete the categories first."
+            ], 422);
+        }
+
         $supplier->delete();
 
         return response()->json([

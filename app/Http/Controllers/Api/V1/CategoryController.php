@@ -77,6 +77,15 @@ class CategoryController extends Controller
 
     public function destroy(Category $category)
     {
+        // Check if category has any sales targets
+        $targetsCount = \App\Models\SalesTarget::where('category_id', $category->id)->count();
+        
+        if ($targetsCount > 0) {
+            return response()->json([
+                'message' => "Cannot delete category '{$category->name}'. This category has {$targetsCount} sales target(s) assigned. Please reassign or delete the targets first."
+            ], 422);
+        }
+
         $category->delete();
 
         return response()->json([

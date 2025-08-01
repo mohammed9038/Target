@@ -59,6 +59,24 @@ class RegionController extends Controller
 
     public function destroy(Region $region)
     {
+        // Check if region has any sales targets
+        $targetsCount = \App\Models\SalesTarget::where('region_id', $region->id)->count();
+        
+        if ($targetsCount > 0) {
+            return response()->json([
+                'message' => "Cannot delete region '{$region->name}'. This region has {$targetsCount} sales target(s) assigned. Please reassign or delete the targets first."
+            ], 422);
+        }
+
+        // Check if region has any salesmen
+        $salesmenCount = \App\Models\Salesman::where('region_id', $region->id)->count();
+        
+        if ($salesmenCount > 0) {
+            return response()->json([
+                'message' => "Cannot delete region '{$region->name}'. This region has {$salesmenCount} salesman/salesmen assigned. Please reassign the salesmen first."
+            ], 422);
+        }
+
         $region->delete();
 
         return response()->json([

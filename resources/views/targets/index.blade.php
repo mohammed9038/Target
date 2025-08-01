@@ -3,6 +3,7 @@
 @section('title', __('Sales Targets'))
 
 @section('content')
+<div id="alert-container" style="position: fixed; top: 20px; right: 20px; z-index: 9999; min-width: 300px;"></div>
 <div class="d-flex justify-content-between align-items-start mb-4">
     <div>
         <h1 class="h2 mb-1">{{ __('Sales Targets') }}</h1>
@@ -90,7 +91,7 @@
             </div>
             <div class="col-md-2">
                 <label for="filter_category" class="form-label">{{ __('Category') }}</label>
-                <select class="form-select" id="filter_category">
+                <select class="form-select" id="filter__category">
                     <option value="">{{ __('All Categories') }}</option>
                 </select>
             </div>
@@ -109,12 +110,6 @@
                 <button type="button" class="btn btn-outline-secondary me-2" onclick="resetFilters()">
                     <i class="bi bi-x-circle me-1"></i>{{ __('Clear Filters') }}
                 </button>
-                <button type="button" class="btn btn-outline-success me-2" onclick="fillAllAmounts()">
-                    <i class="bi bi-plus-circle me-1"></i>{{ __('Fill All') }}
-                </button>
-                <button type="button" class="btn btn-outline-danger" onclick="clearAllAmounts()">
-                    <i class="bi bi-dash-circle me-1"></i>{{ __('Clear All') }}
-                </button>
             </div>
         </div>
     </div>
@@ -124,9 +119,6 @@
 <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center">
         <h5 class="card-title mb-0">{{ __('Target Matrix') }}</h5>
-        <button type="button" class="btn btn-success btn-sm" onclick="saveAllTargets()" id="saveMatrixBtn">
-            <i class="bi bi-floppy me-1"></i>{{ __('Save All') }}
-        </button>
     </div>
     <div class="card-body">
         <div id="matrix-loading" class="text-center py-4" style="display: none;">
@@ -147,7 +139,6 @@
                             <th>{{ __('Supplier') }}</th>
                             <th>{{ __('Category') }}</th>
                             <th>{{ __('Target Amount') }}</th>
-                            <th>{{ __('Actions') }}</th>
                         </tr>
                     </thead>
                     <tbody></tbody>
@@ -190,589 +181,303 @@
         </div>
     </div>
 </div>
+@endsection
 
+@push('scripts')
 <script>
-console.log("🎯 TARGET PAGE SCRIPT LOADED");
+    console.log("🎯 TARGET PAGE SCRIPT LOADED - V2.4 FINAL & CORRECTED");
 
-// ==================== GLOBAL VARIABLES ====================
-let matrixData = [];
-let masterData = {
-    regions: [],
-    channels: [],
-    suppliers: [],
-    categories: [],
-    salesmen: []
-};
-
-// ==================== API CONFIGURATION ====================
-const API_BASE = "/target-system/public";
-const apiOptions = {
-    method: "GET",
-    headers: {
-        "Accept": "application/json",
-        "Content-Type": "application/json"
-    }
-};
-
-// ==================== UTILITY FUNCTIONS ====================
-function showAlert(message, type = "info") {
-    console.log(`Alert (${type}): ${message}`);
-    
-    // Remove existing alerts
-    const existingAlerts = document.querySelectorAll(".alert.alert-custom");
-    existingAlerts.forEach(alert => alert.remove());
-    
-    // Create new alert
-    const alertDiv = document.createElement("div");
-    alertDiv.className = `alert alert-${type === "error" ? "danger" : type} alert-dismissible fade show alert-custom`;
-    alertDiv.style.position = "fixed";
-    alertDiv.style.top = "20px";
-    alertDiv.style.right = "20px";
-    alertDiv.style.zIndex = "9999";
-    alertDiv.style.minWidth = "300px";
-    
-    alertDiv.innerHTML = `
-        ${message}
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    `;
-    
-    document.body.appendChild(alertDiv);
-    
-    // Auto remove after 5 seconds
-    setTimeout(() => {
-        if (alertDiv && alertDiv.parentNode) {
-            alertDiv.remove();
-        }
-    }, 5000);
-}
-
-function populateSelect(elementId, data, valueField, textField) {
-    const select = document.getElementById(elementId);
-    if (!select) {
-        console.warn(`Select element ${elementId} not found`);
-        return;
-    }
-    
-    // Keep the first option (usually "All" or "Select")
-    const firstOption = select.options[0];
-    select.innerHTML = "";
-    select.appendChild(firstOption);
-    
-    if (data && Array.isArray(data)) {
-        data.forEach(item => {
-            const option = document.createElement("option");
-            option.value = item[valueField];
-            option.textContent = item[textField];
-            select.appendChild(option);
-        });
-    }
-}
-
-// ==================== MASTER DATA LOADING ====================
-async function loadMasterData() {
-    console.log("📥 Loading master data...");
-    
-    try {
-        const responses = await Promise.all([
-            fetch(`/api/deps/regions`, apiOptions),
-            fetch(`/api/deps/channels`, apiOptions),
-            fetch(`/api/deps/suppliers`, apiOptions),
-            fetch(`/api/deps/categories`, apiOptions),
-            fetch(`/api/deps/salesmen`, apiOptions)
-        ]);
-        
-        const [regionsData, channelsData, suppliersData, categoriesData, salesmenData] = await Promise.all(
-            responses.map(response => response.json())
-        );
-        
-        // Store master data (Laravel API returns { "data": [...] } format)
-        masterData.regions = regionsData.data || [];
-        masterData.channels = channelsData.data || [];
-        masterData.suppliers = suppliersData.data || [];
-        masterData.categories = categoriesData.data || [];
-        masterData.salesmen = salesmenData.data || [];
-        
-        // Populate filters
-        populateSelect("filter_region", masterData.regions, "id", "name");
-        populateSelect("filter_channel", masterData.channels, "id", "name");
-        populateSelect("filter_supplier", masterData.suppliers, "id", "name");
-        populateSelect("filter_category", masterData.categories, "id", "name");
-        populateSelect("filter_salesman", masterData.salesmen, "id", "name");
-        
-        console.log("✅ Master data loaded successfully");
-        
-    } catch (error) {
-        console.error("❌ Error loading master data:", error);
-        showAlert("Failed to load filter data", "error");
-    }
-}
-
-// ==================== MATRIX LOADING ====================
-async function loadTargetMatrix() {
-    console.log("📊 Loading target matrix...");
-    
-    const year = document.getElementById("target_year")?.value;
-    const month = document.getElementById("target_month")?.value;
-    
-    if (!year || !month) {
-        showAlert("Please select both year and month", "warning");
-        return;
-    }
-    
-    // Show loading
-    document.getElementById("matrix-loading").style.display = "block";
-    document.getElementById("matrix-container").style.display = "none";
-    document.getElementById("matrix-empty").style.display = "none";
-    
-    const loadBtn = document.getElementById("loadMatrixBtn");
-    if (loadBtn) {
-        loadBtn.disabled = true;
-        loadBtn.innerHTML = `<i class="bi bi-hourglass-split me-2"></i>Loading...`;
-    }
-    
-    try {
-        const filters = getCurrentFilters();
-        const params = new URLSearchParams({
-            year: year,
-            month: month,
-            ...filters
-        });
-        
-        const response = await fetch(`/api/targets/matrix?${params}`, apiOptions);
-        
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        
-        const result = await response.json();
-        
-        // Laravel API returns { "data": [...] } format
-        if (result.data !== undefined) {
-            matrixData = result.data;
-            displayMatrixData(matrixData);
-            showAlert(`Matrix loaded with ${matrixData.length} records`, "success");
-        } else {
-            throw new Error(result.message || result.error || "No data received from server");
-        }
-        
-    } catch (error) {
-        console.error("❌ Error loading matrix:", error);
-        showAlert("Failed to load target matrix: " + error.message, "error");
-        
-        // Show empty state
-        document.getElementById("matrix-empty").style.display = "block";
-        
-    } finally {
-        // Hide loading
-        document.getElementById("matrix-loading").style.display = "none";
-        
-        // Reset button
-        if (loadBtn) {
-            loadBtn.disabled = false;
-            loadBtn.innerHTML = `<i class="bi bi-table me-2"></i>Load Matrix`;
-        }
-    }
-}
-
-function displayMatrixData(data) {
-    const tbody = document.querySelector("#target-matrix tbody");
-    if (!tbody) return;
-    
-    tbody.innerHTML = "";
-    
-    if (!data || data.length === 0) {
-        document.getElementById("matrix-container").style.display = "none";
-        document.getElementById("matrix-empty").style.display = "block";
-        return;
-    }
-    
-    data.forEach(row => {
-        const tr = document.createElement("tr");
-        tr.setAttribute("data-salesman-id", row.salesman_id);
-        tr.setAttribute("data-supplier-id", row.supplier_id);
-        tr.setAttribute("data-category-id", row.category_id);
-        tr.setAttribute("data-region-id", row.region_id);
-        tr.setAttribute("data-channel-id", row.channel_id);
-        
-        tr.innerHTML = `
-            <td>${row.salesman_name} (${row.salesman_code})</td>
-            <td>${row.region_name || "N/A"}</td>
-            <td>${row.channel_name || "N/A"}</td>
-            <td>${row.supplier_name}</td>
-            <td>${row.category_name}</td>
-            <td>
-                <input type="number" 
-                       class="form-control form-control-sm target-amount" 
-                       value="${row.target_amount}" 
-                       min="0" 
-                       step="0.01"
-                       style="width: 120px;">
-            </td>
-            <td>
-                <button type="button" 
-                        class="btn btn-sm btn-outline-primary" 
-                        onclick="saveIndividualTarget(this)">
-                    <i class="bi bi-check"></i>
-                </button>
-            </td>
-        `;
-        
-        tbody.appendChild(tr);
-    });
-    
-    document.getElementById("matrix-container").style.display = "block";
-    document.getElementById("matrix-empty").style.display = "none";
-}
-
-// ==================== FILTER FUNCTIONS ====================
-function getCurrentFilters() {
-    return {
-        classification: document.getElementById("filter_classification")?.value || "",
-        region_id: document.getElementById("filter_region")?.value || "",
-        channel_id: document.getElementById("filter_channel")?.value || "",
-        supplier_id: document.getElementById("filter_supplier")?.value || "",
-        category_id: document.getElementById("filter_category")?.value || "",
-        salesman_id: document.getElementById("filter_salesman")?.value || ""
+    // ==================== GLOBAL VARIABLES ====================
+    let salesmenData = [];
+    let suppliersData = [];
+    let targetsData = {}; 
+    let masterData = {
+        regions: [],
+        channels: [],
+        suppliers: [],
+        categories: [],
+        salesmen: []
     };
-}
 
-function applyFilters() {
-    console.log("🔍 Applying filters...");
-    const filters = getCurrentFilters();
-    console.log("Filters:", filters);
-    
-    // Reload matrix with filters
-    loadTargetMatrix();
-}
+    // ==================== API CONFIGURATION ====================
+    const apiOptions = {
+        headers: {
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        }
+    };
 
-function resetFilters() {
-    console.log("🧹 Resetting filters...");
-    
-    document.getElementById("filter_classification").value = "";
-    document.getElementById("filter_region").value = "";
-    document.getElementById("filter_channel").value = "";
-    document.getElementById("filter_supplier").value = "";
-    document.getElementById("filter_category").value = "";
-    document.getElementById("filter_salesman").value = "";
-    
-    showAlert("Filters cleared", "info");
-}
-
-// ==================== SAVE FUNCTIONS ====================
-async function saveAllTargets() {
-    console.log("💾 Saving all targets...");
-    
-    const year = document.getElementById("target_year")?.value;
-    const month = document.getElementById("target_month")?.value;
-    
-    if (!year || !month) {
-        showAlert("Please select year and month first", "warning");
-        return;
+    // ==================== UTILITY FUNCTIONS ====================
+    function showAlert(message, type = "info") {
+        const alertContainer = document.getElementById('alert-container');
+        const alertDiv = document.createElement("div");
+        alertDiv.className = `alert alert-${type === "error" ? "danger" : type} alert-dismissible fade show`;
+        alertDiv.innerHTML = `${message}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
+        alertContainer.appendChild(alertDiv);
+        setTimeout(() => alertDiv.remove(), 5000);
     }
-    
-    const targets = [];
-    const rows = document.querySelectorAll("#target-matrix tbody tr[data-salesman-id]");
-    
-    rows.forEach(row => {
-        const input = row.querySelector(".target-amount");
-        if (input) {
-            const targetAmount = parseFloat(input.value) || 0;
-            targets.push({
-                salesman_id: parseInt(row.getAttribute("data-salesman-id")),
-                supplier_id: parseInt(row.getAttribute("data-supplier-id")),
-                category_id: parseInt(row.getAttribute("data-category-id")),
-                region_id: parseInt(row.getAttribute("data-region-id")),
-                channel_id: parseInt(row.getAttribute("data-channel-id")),
-                target_amount: targetAmount
+
+    function populateSelect(elementId, data, valueField, textField) {
+        const select = document.getElementById(elementId);
+        if (!select) return;
+        
+        const firstOption = select.options[0];
+        select.innerHTML = "";
+        select.appendChild(firstOption);
+
+        if (data && Array.isArray(data)) {
+            data.forEach(item => {
+                const option = document.createElement("option");
+                option.value = item[valueField];
+                option.textContent = item[textField];
+                select.appendChild(option);
             });
         }
-    });
-    
-    if (targets.length === 0) {
-        showAlert("No targets to save", "warning");
-        return;
     }
-    
-    // Disable save buttons
-    const saveAllBtn = document.getElementById("saveAllBtn");
-    const saveMatrixBtn = document.getElementById("saveMatrixBtn");
-    
-    if (saveAllBtn) {
-        saveAllBtn.disabled = true;
-        saveAllBtn.innerHTML = `<i class="bi bi-hourglass-split me-2"></i>Saving...`;
-    }
-    if (saveMatrixBtn) {
-        saveMatrixBtn.disabled = true;
-        saveMatrixBtn.innerHTML = `<i class="bi bi-hourglass-split me-1"></i>Saving...`;
-    }
-    
-    try {
-        const response = await fetch(`/api/targets/bulk-save`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Accept": "application/json"
-            },
-            body: JSON.stringify({
-                year: parseInt(year),
-                month: parseInt(month),
-                targets: targets
-            })
-        });
-        
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        
-        const result = await response.json();
-        
-        if (result.success) {
-            showAlert(`Successfully saved ${result.saved} targets`, "success");
-        } else {
-            throw new Error(result.error || "Save failed");
-        }
-        
-    } catch (error) {
-        console.error("❌ Error saving targets:", error);
-        showAlert("Failed to save targets: " + error.message, "error");
-        
-    } finally {
-        // Re-enable save buttons
-        if (saveAllBtn) {
-            saveAllBtn.disabled = false;
-            saveAllBtn.innerHTML = `<i class="bi bi-check-circle me-2"></i>Save All Targets`;
-        }
-        if (saveMatrixBtn) {
-            saveMatrixBtn.disabled = false;
-            saveMatrixBtn.innerHTML = `<i class="bi bi-floppy me-1"></i>Save All`;
-        }
-    }
-}
 
-async function saveIndividualTarget(button) {
-    const row = button.closest("tr");
-    const input = row.querySelector(".target-amount");
-    const targetAmount = parseFloat(input.value) || 0;
-    
-    const year = document.getElementById("target_year")?.value;
-    const month = document.getElementById("target_month")?.value;
-    
-    if (!year || !month) {
-        showAlert("Please select year and month first", "warning");
-        return;
-    }
-    
-    button.disabled = true;
-    button.innerHTML = `<i class="bi bi-hourglass-split"></i>`;
-    
-    try {
-        const response = await fetch(`/api/targets/bulk-save`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Accept": "application/json"
-            },
-            body: JSON.stringify({
-                year: parseInt(year),
-                month: parseInt(month),
-                targets: [{
-                    salesman_id: parseInt(row.getAttribute("data-salesman-id")),
-                    supplier_id: parseInt(row.getAttribute("data-supplier-id")),
-                    category_id: parseInt(row.getAttribute("data-category-id")),
-                    region_id: parseInt(row.getAttribute("data-region-id")),
-                    channel_id: parseInt(row.getAttribute("data-channel-id")),
-                    target_amount: targetAmount
-                }]
-            })
-        });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-            showAlert("Target saved successfully", "success");
-        } else {
-            throw new Error(result.error || "Save failed");
-        }
-        
-    } catch (error) {
-        console.error("❌ Error saving target:", error);
-        showAlert("Failed to save target: " + error.message, "error");
-        
-    } finally {
-        button.disabled = false;
-        button.innerHTML = `<i class="bi bi-check"></i>`;
-    }
-}
+    // ==================== MASTER DATA LOADING ====================
+    async function loadMasterData() {
+        console.log("📥 Loading master data...");
+        try {
+            const responses = await Promise.all([
+                fetch(`/api/deps/regions`, { headers: apiOptions.headers }),
+                fetch(`/api/deps/channels`, { headers: apiOptions.headers }),
+                fetch(`/api/deps/suppliers`, { headers: apiOptions.headers }),
+                fetch(`/api/deps/categories`, { headers: apiOptions.headers }),
+                fetch(`/api/deps/salesmen`, { headers: apiOptions.headers })
+            ]);
 
-// ==================== EXPORT FUNCTION ====================
-function exportTargets() {
-    console.log("📤 Exporting targets...");
-    
-    const year = document.getElementById("target_year")?.value;
-    const month = document.getElementById("target_month")?.value;
-    
-    if (!year || !month) {
-        showAlert("Please select year and month first", "warning");
-        return;
-    }
-    
-    const filters = getCurrentFilters();
-    const params = new URLSearchParams({
-        year: year,
-        month: month,
-        ...filters
-    });
-    
-    // Create download link
-    const downloadUrl = `${API_BASE}/export-targets.php?${params}`;
-    
-    // Create temporary link and click it
-    const link = document.createElement("a");
-    link.href = downloadUrl;
-    link.download = `targets_${year}_${month}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    
-    showAlert("Export started. File will download shortly.", "info");
-}
+            const [regions, channels, suppliers, categories, salesmen] = await Promise.all(responses.map(res => res.json()));
 
-// ==================== UPLOAD FUNCTIONS ====================
-function showUploadModal() {
-    const year = document.getElementById("target_year")?.value;
-    const month = document.getElementById("target_month")?.value;
-    
-    if (!year || !month) {
-        showAlert("Please select year and month first", "warning");
-        return;
-    }
-    
-    document.getElementById("upload_year").value = year;
-    document.getElementById("upload_month").value = month;
-    
-    const modal = new bootstrap.Modal(document.getElementById("uploadModal"));
-    modal.show();
-}
+            masterData = {
+                regions: regions.data || [],
+                channels: channels.data || [],
+                suppliers: suppliers.data || [],
+                categories: categories.data || [],
+                salesmen: salesmen.data || []
+            };
 
-async function uploadTargets() {
-    console.log("📤 Uploading targets...");
-    
-    const fileInput = document.getElementById("upload_file");
-    const file = fileInput.files[0];
-    
-    if (!file) {
-        showAlert("Please select a CSV file", "warning");
-        return;
-    }
-    
-    const year = document.getElementById("upload_year").value;
-    const month = document.getElementById("upload_month").value;
-    
-    const formData = new FormData();
-    formData.append("csv_file", file);
-    formData.append("year", year);
-    formData.append("month", month);
-    
-    try {
-        const response = await fetch(`${API_BASE}/upload-targets.php`, {
-            method: "POST",
-            body: formData
-        });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-            showAlert(`Upload completed. Processed: ${result.processed} records`, "success");
+            populateSelect("filter_region", masterData.regions, "id", "name");
+            populateSelect("filter_channel", masterData.channels, "id", "name");
+            populateSelect("filter_supplier", masterData.suppliers, "id", "name");
+            populateSelect("filter_category", masterData.categories, "id", "name");
+            populateSelect("filter_salesman", masterData.salesmen, "id", "name");
             
-            // Close modal
-            const modal = bootstrap.Modal.getInstance(document.getElementById("uploadModal"));
-            modal.hide();
+            console.log("✅ Master data loaded");
+        } catch (error) {
+            console.error("❌ Error loading master data:", error);
+            showAlert("Failed to load filter data.", "error");
+        }
+    }
+
+    // ==================== MATRIX LOADING & RENDERING ====================
+    async function loadTargetMatrix() {
+        console.log("📊 Loading target matrix...");
+        const year = document.getElementById("target_year")?.value;
+        const month = document.getElementById("target_month")?.value;
+
+        if (!year || !month) {
+            showAlert("Please select both year and month.", "warning");
+            return;
+        }
+
+        const loadBtn = document.getElementById("loadMatrixBtn");
+        loadBtn.disabled = true;
+        loadBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-2"></span>Loading...`;
+
+        document.getElementById("matrix-loading").style.display = "block";
+        document.getElementById("matrix-container").style.display = "none";
+        document.getElementById("matrix-empty").style.display = "none";
+
+        try {
+            const filters = getCurrentFilters();
+            const params = new URLSearchParams({ year, month, ...filters });
+            const response = await fetch(`/api/targets/matrix?${params}`, { headers: apiOptions.headers });
+
+            if (!response.ok) throw new Error(`Server Error: ${response.statusText}`);
             
-            // Reload matrix
-            loadTargetMatrix();
+            const result = await response.json();
             
-        } else {
-            throw new Error(result.error || "Upload failed");
+            if (result.data && typeof result.data === 'object') {
+                salesmenData = result.data.salesmen || [];
+                suppliersData = result.data.suppliers || [];
+                targetsData = (result.data.targets || []).reduce((map, t) => {
+                    map[`${t.salesman_id}-${t.supplier_id}-${t.category_id}`] = t.target_amount;
+                    return map;
+                }, {});
+
+                renderMatrixPage();
+                showAlert(`Matrix data loaded.`, "success");
+            } else {
+                 throw new Error("Invalid data format received from server.");
+            }
+        } catch (error) {
+            console.error("❌ Error loading matrix:", error);
+            showAlert(`Failed to load target matrix: ${error.message}`, "error");
+            document.getElementById("matrix-empty").style.display = "block";
+        } finally {
+            loadBtn.disabled = false;
+            loadBtn.innerHTML = `<i class="bi bi-table me-2"></i>Load Matrix`;
+            document.getElementById("matrix-loading").style.display = "none";
+        }
+    }
+    
+    function renderMatrixPage() {
+        const tbody = document.querySelector("#target-matrix tbody");
+        if (!tbody) return;
+
+        tbody.innerHTML = "";
+        
+        if (salesmenData.length === 0 || suppliersData.length === 0) {
+            document.getElementById("matrix-container").style.display = "none";
+            document.getElementById("matrix-empty").style.display = "block";
+            return;
         }
         
-    } catch (error) {
-        console.error("❌ Error uploading targets:", error);
-        showAlert("Failed to upload targets: " + error.message, "error");
-    }
-}
+        salesmenData.forEach(salesman => {
+            suppliersData.forEach(supplier => {
+                if (isClassificationCompatible(salesman.salesman_classification, supplier.supplier_classification)) {
+                    const tr = document.createElement("tr");
+                    const targetKey = `${salesman.salesman_id}-${supplier.supplier_id}-${supplier.category_id}`;
+                    const targetAmount = targetsData[targetKey] || "";
 
-// ==================== TEMPLATE DOWNLOAD ====================
-function downloadTemplate() {
-    console.log("📥 Downloading template...");
-    
-    // Create download link
-    const downloadUrl = `${API_BASE}/download-template.php`;
-    
-    // Create temporary link and click it
-    const link = document.createElement("a");
-    link.href = downloadUrl;
-    link.download = `targets_template_${new Date().toISOString().split("T")[0]}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    
-    showAlert("Template download started", "info");
-}
+                    tr.innerHTML = `
+                        <td>${salesman.salesman_name} (${salesman.salesman_code})</td>
+                        <td>${salesman.region_name || "N/A"}</td>
+                        <td>${salesman.channel_name || "N/A"}</td>
+                        <td>${supplier.supplier_name}</td>
+                        <td>${supplier.category_name}</td>
+                        <td>
+                            <input type="number" class="form-control form-control-sm target-amount"
+                                   value="${targetAmount}" min="0" step="0.01" style="width: 120px;"
+                                   data-salesman-id="${salesman.salesman_id}"
+                                   data-supplier-id="${supplier.supplier_id}"
+                                   data-category-id="${supplier.category_id}">
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                }
+            });
+        });
 
-// ==================== UTILITY FUNCTIONS ====================
-function fillAllAmounts() {
-    const amount = prompt("Enter amount to fill for all visible targets:", "1000");
-    if (amount === null) return;
-    
-    const parsedAmount = parseFloat(amount);
-    if (isNaN(parsedAmount) || parsedAmount < 0) {
-        showAlert("Please enter a valid positive number", "warning");
-        return;
+        document.getElementById("matrix-container").style.display = "block";
+        document.getElementById("matrix-empty").style.display = "none";
+    }
+
+    function isClassificationCompatible(salesmanClass, supplierClass) {
+        if (!salesmanClass || !supplierClass) return true;
+        if (salesmanClass === 'both' || supplierClass === 'both') return true;
+        return salesmanClass === supplierClass;
+    }
+
+
+    // ==================== FILTER & SAVE FUNCTIONS ====================
+    function getCurrentFilters() {
+        return {
+            classification: document.getElementById("filter_classification")?.value || "",
+            region_id: document.getElementById("filter_region")?.value || "",
+            channel_id: document.getElementById("filter_channel")?.value || "",
+            supplier_id: document.getElementById("filter_supplier")?.value || "",
+            category_id: document.getElementById("filter_category")?.value || "",
+            salesman_id: document.getElementById("filter_salesman")?.value || ""
+        };
+    }
+
+    function applyFilters() {
+        loadTargetMatrix();
+    }
+
+    function resetFilters() {
+        const filterIds = ["filter_classification", "filter_region", "filter_channel", "filter_supplier", "filter_category", "filter_salesman"];
+        filterIds.forEach(id => document.getElementById(id).value = "");
+        showAlert("Filters cleared.", "info");
+        loadTargetMatrix();
+    }
+
+    async function saveAllTargets() {
+        const year = document.getElementById("target_year")?.value;
+        const month = document.getElementById("target_month")?.value;
+        if (!year || !month) {
+            showAlert("Please select year and month before saving.", "warning");
+            return;
+        }
+
+        const targetsToSave = [];
+        document.querySelectorAll(".target-amount").forEach(input => {
+            const amount = parseFloat(input.value);
+            if (!isNaN(amount) && amount >= 0 && input.value.trim() !== '') {
+                targetsToSave.push({
+                    salesman_id: parseInt(input.dataset.salesmanId),
+                    supplier_id: parseInt(input.dataset.supplierId),
+                    category_id: parseInt(input.dataset.categoryId),
+                    target_amount: amount
+                });
+            }
+        });
+
+        if (targetsToSave.length === 0) {
+            showAlert("No new targets to save.", "info");
+            return;
+        }
+
+        const saveBtn = document.getElementById("saveAllBtn");
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-2"></span>Saving...`;
+
+        try {
+            const response = await fetch(`/api/targets/bulk-save`, {
+                method: 'POST',
+                headers: apiOptions.headers,
+                body: JSON.stringify({ year, month, targets: targetsToSave })
+            });
+            if (!response.ok) {
+                 const errorData = await response.json();
+                 throw new Error(errorData.message || `Server error ${response.status}`);
+            }
+            const result = await response.json();
+            showAlert(`${result.saved_count} targets saved successfully.`, "success");
+            
+            targetsToSave.forEach(t => {
+                targetsData[`${t.salesman_id}-${t.supplier_id}-${t.category_id}`] = t.target_amount;
+            });
+
+        } catch (error) {
+            console.error("❌ Error saving targets:", error);
+            showAlert(`Failed to save targets: ${error.message}`, "error");
+        } finally {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = `<i class="bi bi-check-circle me-2"></i>Save All Targets`;
+        }
     }
     
-    const inputs = document.querySelectorAll("#target-matrix .target-amount");
-    inputs.forEach(input => {
-        input.value = parsedAmount;
+    // ==================== OTHER FUNCTIONS (Upload, Export, etc.) ====================
+    function showUploadModal() {
+        showAlert("Upload functionality is not yet implemented in this view.", "info");
+    }
+    
+    function exportTargets() {
+        showAlert("Export functionality is not yet implemented in this view.", "info");
+    }
+
+    function downloadTemplate() {
+        showAlert("Template download is not yet implemented in this view.", "info");
+    }
+
+
+    // ==================== INITIALIZATION ====================
+    document.addEventListener("DOMContentLoaded", function() {
+        console.log("🚀 Target page initialized");
+        loadMasterData();
+
+        window.loadTargetMatrix = loadTargetMatrix;
+        window.applyFilters = applyFilters;
+        window.resetFilters = resetFilters;
+        window.saveAllTargets = saveAllTargets;
+        window.showUploadModal = showUploadModal;
+        window.exportTargets = exportTargets;
+        window.downloadTemplate = downloadTemplate;
     });
-    
-    showAlert(`All amounts filled with ${parsedAmount}`, "success");
-}
-
-function clearAllAmounts() {
-    if (!confirm("Are you sure you want to clear all target amounts?")) {
-        return;
-    }
-    
-    const inputs = document.querySelectorAll("#target-matrix .target-amount");
-    inputs.forEach(input => {
-        input.value = 0;
-    });
-    
-    showAlert("All amounts cleared", "info");
-}
-
-// ==================== INITIALIZATION ====================
-document.addEventListener("DOMContentLoaded", function() {
-    console.log("🚀 Target page initialized");
-    
-    // Load master data for filters
-    loadMasterData();
-    
-    // Set up global functions
-    window.loadTargetMatrix = loadTargetMatrix;
-    window.saveAllTargets = saveAllTargets;
-    window.saveIndividualTarget = saveIndividualTarget;
-    window.applyFilters = applyFilters;
-    window.resetFilters = resetFilters;
-    window.exportTargets = exportTargets;
-    window.showUploadModal = showUploadModal;
-    window.uploadTargets = uploadTargets;
-    window.downloadTemplate = downloadTemplate;
-    window.fillAllAmounts = fillAllAmounts;
-    window.clearAllAmounts = clearAllAmounts;
-    
-    console.log("✅ All functions loaded and ready");
-});
 
 </script>
-@endsection
+@endpush

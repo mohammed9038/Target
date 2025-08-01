@@ -4,227 +4,176 @@
 
 @section('content')
 <div id="alert-container" style="position: fixed; top: 20px; right: 20px; z-index: 9999; min-width: 300px;"></div>
-<!-- Modern Page Header -->
-<div class="d-flex justify-content-between align-items-start mb-4">
+<!-- Compact Page Header -->
+<div class="d-flex justify-content-between align-items-center mb-3">
     <div>
-        <h1 class="h2 mb-2 fw-bold d-flex align-items-center">
-            <div class="p-2 rounded-circle bg-primary bg-opacity-10 me-3">
-                <i class="bi bi-bullseye text-primary"></i>
+        <h1 class="h4 mb-1 fw-bold d-flex align-items-center">
+            <div class="p-1 rounded-circle bg-primary bg-opacity-10 me-2">
+                <i class="bi bi-bullseye text-primary small"></i>
             </div>
             {{ __('Sales Targets') }}
         </h1>
-        <p class="text-muted mb-0 ms-5 ps-2">{{ __('Set and manage sales targets for your team members') }}</p>
+        <p class="text-muted mb-0 ms-4 small">{{ __('Set and manage sales targets for your team members') }}</p>
     </div>
-    <div class="d-flex gap-2 flex-wrap" style="margin-top: 0.5rem;">
-        <button type="button" class="btn btn-success shadow-sm" onclick="saveAllTargets()" id="saveAllBtn" style="border-radius: 8px;">
-            <i class="bi bi-check-circle me-2"></i>{{ __('Save All Targets') }}
+    <div class="d-flex gap-1 flex-wrap">
+        <button type="button" class="btn btn-success btn-sm" onclick="saveAllTargets()" id="saveAllBtn">
+            <i class="bi bi-check-circle me-1"></i>{{ __('Save All') }}
         </button>
-        <div class="btn-group shadow-sm" role="group" style="border-radius: 8px;">
-            <button type="button" class="btn btn-outline-primary" onclick="exportTargets()" style="border-radius: 8px 0 0 8px;">
-                <i class="bi bi-file-earmark-spreadsheet me-2"></i>{{ __('Export CSV') }}
+        <div class="btn-group btn-group-sm" role="group">
+            <button type="button" class="btn btn-outline-primary" onclick="exportTargets()">
+                <i class="bi bi-file-earmark-spreadsheet me-1"></i>{{ __('Export') }}
             </button>
-            <button type="button" class="btn btn-outline-primary" onclick="showUploadModal()" style="border-radius: 0;">
-                <i class="bi bi-upload me-2"></i>{{ __('Upload') }}
+            <button type="button" class="btn btn-outline-primary" onclick="showUploadModal()">
+                <i class="bi bi-upload me-1"></i>{{ __('Upload') }}
             </button>
-            <button type="button" class="btn btn-outline-primary" onclick="downloadTemplate()" style="border-radius: 0 8px 8px 0;">
-                <i class="bi bi-download me-2"></i>{{ __('Template') }}
+            <button type="button" class="btn btn-outline-primary" onclick="downloadTemplate()">
+                <i class="bi bi-download me-1"></i>{{ __('Template') }}
             </button>
         </div>
     </div>
 </div>
 
-<!-- Modern Compact Filters Panel -->
-<div class="card border-0 shadow-sm mb-4" style="border-radius: 12px; background: linear-gradient(135deg, #ffffff 0%, #f9fafb 100%); border: 1px solid #e5e7eb;">
-    <div class="card-body p-4">
-        <!-- Period Selection Row -->
-        <div class="row g-3 mb-4">
-            <div class="col-auto">
-                <h6 class="text-primary fw-semibold mb-3 d-flex align-items-center">
-                    <i class="bi bi-calendar3 me-2"></i>{{ __('Target Period') }}
-                </h6>
-            </div>
-        </div>
-        
-        <div class="row g-3 mb-4">
-            <div class="col-lg-2 col-md-3">
-                <label for="target_year" class="form-label small fw-medium text-dark">
-                    <i class="bi bi-calendar-year me-1 text-primary"></i>{{ __('Year') }}
-                </label>
-                <select class="form-select form-select-sm border-0 shadow-sm" id="target_year" name="year" style="border-radius: 8px;">
-                    <option value="">{{ __('Select Year') }}</option>
+<!-- Compact Filters Panel -->
+<div class="card border-0 shadow-sm mb-3">
+    <div class="card-body p-3">
+        <!-- Period and Filters in One Row -->
+        <div class="row g-2 align-items-end">
+            <div class="col-lg-1 col-md-2">
+                <label for="target_year" class="form-label small text-muted mb-1">{{ __('Year') }}</label>
+                <select class="form-select form-select-sm" id="target_year" name="year">
+                    <option value="">{{ __('Year') }}</option>
                     @for($y = date('Y'); $y <= date('Y') + 2; $y++)
                         <option value="{{ $y }}" {{ $y == date('Y') ? 'selected' : '' }}>{{ $y }}</option>
                     @endfor
                 </select>
             </div>
-            <div class="col-lg-2 col-md-3">
-                <label for="target_month" class="form-label small fw-medium text-dark">
-                    <i class="bi bi-calendar-month me-1 text-primary"></i>{{ __('Month') }}
-                </label>
-                <select class="form-select form-select-sm border-0 shadow-sm" id="target_month" name="month" style="border-radius: 8px;">
-                    <option value="">{{ __('Select Month') }}</option>
+            <div class="col-lg-1 col-md-2">
+                <label for="target_month" class="form-label small text-muted mb-1">{{ __('Month') }}</label>
+                <select class="form-select form-select-sm" id="target_month" name="month">
+                    <option value="">{{ __('Month') }}</option>
                     @for($m = 1; $m <= 12; $m++)
                         <option value="{{ $m }}" {{ $m == date('n') ? 'selected' : '' }}>
-                            {{ date('F', mktime(0, 0, 0, $m, 1)) }}
+                            {{ date('M', mktime(0, 0, 0, $m, 1)) }}
                         </option>
                     @endfor
                 </select>
             </div>
-            <div class="col-lg-2 col-md-3">
-                <label class="form-label small fw-medium text-dark">
-                    <i class="bi bi-play-circle me-1 text-success"></i>{{ __('Action') }}
-                </label>
-                <button class="btn btn-primary btn-sm w-100 shadow-sm" id="loadMatrixBtn" onclick="loadTargetMatrix()" style="border-radius: 8px;">
-                    <i class="bi bi-table me-2"></i>{{ __('Load Matrix') }}
+            <div class="col-lg-1 col-md-2">
+                <button class="btn btn-primary btn-sm w-100" id="loadMatrixBtn" onclick="loadTargetMatrix()">
+                    <i class="bi bi-table me-1"></i>{{ __('Load') }}
                 </button>
             </div>
-        </div>
-
-        <!-- Divider -->
-        <hr class="my-4" style="opacity: 0.1;">
-
-        <!-- Filters Row -->
-        <div class="row g-3 mb-3">
-            <div class="col-auto">
-                <h6 class="text-primary fw-semibold mb-3 d-flex align-items-center">
-                    <i class="bi bi-funnel me-2"></i>{{ __('Filters') }}
-                    <small class="text-muted ms-2 fw-normal">({{ __('Optional - Filter before loading') }})</small>
-                </h6>
-            </div>
-        </div>
-
-        <div class="row g-3">
-            <div class="col-lg-2 col-md-4 col-sm-6">
-                <label for="filter_classification" class="form-label small fw-medium text-dark">
-                    <i class="bi bi-collection me-1 text-info"></i>{{ __('Classification') }}
-                </label>
-                <select class="form-select form-select-sm border-0 shadow-sm" id="filter_classification" style="border-radius: 8px;">
-                    <option value="">{{ __('All Types') }}</option>
-                    <!-- Options will be populated dynamically based on user permissions -->
+            <div class="col-lg-1 col-md-2">
+                <label for="filter_classification" class="form-label small text-muted mb-1">{{ __('Type') }}</label>
+                <select class="form-select form-select-sm" id="filter_classification">
+                    <option value="">{{ __('All') }}</option>
                 </select>
             </div>
-            <div class="col-lg-2 col-md-4 col-sm-6">
-                <label for="filter_region" class="form-label small fw-medium text-dark">
-                    <i class="bi bi-geo-alt me-1 text-danger"></i>{{ __('Region') }}
-                </label>
-                <select class="form-select form-select-sm border-0 shadow-sm" id="filter_region" style="border-radius: 8px;">
+            <div class="col-lg-2 col-md-2">
+                <label for="filter_region" class="form-label small text-muted mb-1">{{ __('Region') }}</label>
+                <select class="form-select form-select-sm" id="filter_region">
                     <option value="">{{ __('All Regions') }}</option>
                 </select>
             </div>
-            <div class="col-lg-2 col-md-4 col-sm-6">
-                <label for="filter_channel" class="form-label small fw-medium text-dark">
-                    <i class="bi bi-diagram-3 me-1 text-warning"></i>{{ __('Channel') }}
-                </label>
-                <select class="form-select form-select-sm border-0 shadow-sm" id="filter_channel" style="border-radius: 8px;">
+            <div class="col-lg-2 col-md-2">
+                <label for="filter_channel" class="form-label small text-muted mb-1">{{ __('Channel') }}</label>
+                <select class="form-select form-select-sm" id="filter_channel">
                     <option value="">{{ __('All Channels') }}</option>
                 </select>
             </div>
-            <div class="col-lg-2 col-md-4 col-sm-6">
-                <label for="filter_supplier" class="form-label small fw-medium text-dark">
-                    <i class="bi bi-building me-1 text-success"></i>{{ __('Supplier') }}
-                </label>
-                <select class="form-select form-select-sm border-0 shadow-sm" id="filter_supplier" style="border-radius: 8px;">
+            <div class="col-lg-2 col-md-2">
+                <label for="filter_supplier" class="form-label small text-muted mb-1">{{ __('Supplier') }}</label>
+                <select class="form-select form-select-sm" id="filter_supplier">
                     <option value="">{{ __('All Suppliers') }}</option>
                 </select>
             </div>
-            <div class="col-lg-2 col-md-4 col-sm-6">
-                <label for="filter_category" class="form-label small fw-medium text-dark">
-                    <i class="bi bi-tags me-1 text-primary"></i>{{ __('Category') }}
-                </label>
-                <select class="form-select form-select-sm border-0 shadow-sm" id="filter_category" style="border-radius: 8px;">
-                    <option value="">{{ __('All Categories') }}</option>
+            <div class="col-lg-1 col-md-2">
+                <label for="filter_category" class="form-label small text-muted mb-1">{{ __('Category') }}</label>
+                <select class="form-select form-select-sm" id="filter_category">
+                    <option value="">{{ __('All') }}</option>
                 </select>
             </div>
-            <div class="col-lg-2 col-md-4 col-sm-6">
-                <label for="filter_salesman" class="form-label small fw-medium text-dark">
-                    <i class="bi bi-person-badge me-1 text-secondary"></i>{{ __('Salesman') }}
-                </label>
-                <select class="form-select form-select-sm border-0 shadow-sm" id="filter_salesman" style="border-radius: 8px;">
-                    <option value="">{{ __('All Salesmen') }}</option>
+            <div class="col-lg-1 col-md-2">
+                <label for="filter_salesman" class="form-label small text-muted mb-1">{{ __('Salesman') }}</label>
+                <select class="form-select form-select-sm" id="filter_salesman">
+                    <option value="">{{ __('All') }}</option>
                 </select>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Modern Target Matrix -->
-<div class="card border-0 shadow-sm" style="border-radius: 12px;">
-    <div class="card-header border-0 bg-white d-flex justify-content-between align-items-center" style="border-radius: 12px 12px 0 0;">
-        <h5 class="card-title mb-0 fw-semibold d-flex align-items-center">
-            <div class="p-2 rounded-circle bg-success bg-opacity-10 me-3">
-                <i class="bi bi-grid-3x3-gap text-success"></i>
-            </div>
+<!-- Compact Target Matrix -->
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-white d-flex justify-content-between align-items-center py-2">
+        <h6 class="card-title mb-0 fw-semibold d-flex align-items-center">
+            <i class="bi bi-grid-3x3-gap text-success me-2"></i>
             {{ __('Target Matrix') }}
-        </h5>
-        <div class="d-flex align-items-center gap-3">
-            <span class="badge bg-info bg-opacity-10 text-info px-3 py-2">
-                <i class="bi bi-info-circle me-1"></i>{{ __('Enter target amounts') }}
-            </span>
-        </div>
+        </h6>
+        <small class="text-muted">
+            <i class="bi bi-info-circle me-1"></i>{{ __('Enter target amounts') }}
+        </small>
     </div>
     <div class="card-body p-0">
         <!-- Loading State -->
-        <div id="matrix-loading" class="text-center py-5" style="display: none;">
-            <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
+        <div id="matrix-loading" class="text-center py-3" style="display: none;">
+            <div class="spinner-border text-primary mb-2" role="status">
                 <span class="visually-hidden">{{ __('Loading...') }}</span>
             </div>
-            <h6 class="text-primary fw-semibold">{{ __('Loading target matrix...') }}</h6>
-            <p class="text-muted small mb-0">{{ __('Please wait while we fetch the data') }}</p>
+            <small class="text-muted">{{ __('Loading target matrix...') }}</small>
         </div>
         
         <!-- Matrix Container -->
         <div id="matrix-container" style="display: none;">
             <div class="table-responsive">
-                <table class="table table-hover mb-0" id="target-matrix" style="font-size: 0.9rem;">
-                    <thead style="background: linear-gradient(135deg, #4f46e5 0%, #3730a3 100%); color: white;">
+                <table class="table table-hover table-sm mb-0" id="target-matrix" style="font-size: 0.85rem;">
+                    <thead class="table-dark">
                         <tr>
-                            <th class="border-0 py-3 px-4 fw-semibold">
-                                <i class="bi bi-person-badge me-2"></i>{{ __('Salesman') }}
+                            <th class="py-2 px-3 small">
+                                <i class="bi bi-person-badge me-1"></i>{{ __('Salesman') }}
                             </th>
-                            <th class="border-0 py-3 px-4 fw-semibold">
-                                <i class="bi bi-geo-alt me-2"></i>{{ __('Region') }}
+                            <th class="py-2 px-3 small">
+                                <i class="bi bi-geo-alt me-1"></i>{{ __('Region') }}
                             </th>
-                            <th class="border-0 py-3 px-4 fw-semibold">
-                                <i class="bi bi-diagram-3 me-2"></i>{{ __('Channel') }}
+                            <th class="py-2 px-3 small">
+                                <i class="bi bi-diagram-3 me-1"></i>{{ __('Channel') }}
                             </th>
-                            <th class="border-0 py-3 px-4 fw-semibold">
-                                <i class="bi bi-building me-2"></i>{{ __('Supplier') }}
+                            <th class="py-2 px-3 small">
+                                <i class="bi bi-building me-1"></i>{{ __('Supplier') }}
                             </th>
-                            <th class="border-0 py-3 px-4 fw-semibold">
-                                <i class="bi bi-tags me-2"></i>{{ __('Category') }}
+                            <th class="py-2 px-3 small">
+                                <i class="bi bi-tags me-1"></i>{{ __('Category') }}
                             </th>
-                            <th class="border-0 py-3 px-4 fw-semibold">
-                                <i class="bi bi-diagram-2 me-2"></i>{{ __('Classification') }}
+                            <th class="py-2 px-3 small">
+                                <i class="bi bi-diagram-2 me-1"></i>{{ __('Type') }}
                             </th>
-                            <th class="border-0 py-3 px-4 fw-semibold text-center">
-                                <i class="bi bi-currency-dollar me-2"></i>{{ __('Target Amount') }}
+                            <th class="py-2 px-3 small text-center">
+                                <i class="bi bi-currency-dollar me-1"></i>{{ __('Amount') }}
                             </th>
                         </tr>
                     </thead>
-                    <tbody style="background-color: #fafbfc;"></tbody>
+                    <tbody></tbody>
                 </table>
             </div>
         </div>
         
         <!-- Empty State -->
-        <div id="matrix-empty" class="text-center py-5" style="background-color: #fafbfc;">
-            <div class="mb-4">
-                <div class="d-inline-flex p-4 rounded-circle bg-light border">
-                    <i class="bi bi-table text-muted" style="font-size: 2.5rem;"></i>
-                </div>
+        <div id="matrix-empty" class="text-center py-4">
+            <div class="mb-3">
+                <i class="bi bi-table text-muted" style="font-size: 2rem;"></i>
             </div>
-            <h6 class="text-dark fw-semibold mb-2">{{ __('No Data Available') }}</h6>
-            <p class="text-muted mb-4">{{ __('Please select year, month and click "Load Matrix" to view targets.') }}</p>
-            <div class="d-flex justify-content-center gap-2">
-                <span class="badge bg-primary bg-opacity-10 text-primary px-3 py-2">
+            <h6 class="text-dark mb-2">{{ __('No Data Available') }}</h6>
+            <p class="text-muted small mb-3">{{ __('Please select year, month and click "Load Matrix" to view targets.') }}</p>
+            <div class="d-flex justify-content-center gap-1 flex-wrap">
+                <small class="badge bg-primary bg-opacity-10 text-primary px-2 py-1">
                     <i class="bi bi-1-circle me-1"></i>{{ __('Select Period') }}
-                </span>
-                <span class="badge bg-success bg-opacity-10 text-success px-3 py-2">
+                </small>
+                <small class="badge bg-success bg-opacity-10 text-success px-2 py-1">
                     <i class="bi bi-2-circle me-1"></i>{{ __('Apply Filters') }}
-                </span>
-                <span class="badge bg-info bg-opacity-10 text-info px-3 py-2">
+                </small>
+                <small class="badge bg-info bg-opacity-10 text-info px-2 py-1">
                     <i class="bi bi-3-circle me-1"></i>{{ __('Load Matrix') }}
-                </span>
+                </small>
             </div>
         </div>
     </div>

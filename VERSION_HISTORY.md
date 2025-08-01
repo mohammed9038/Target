@@ -2,7 +2,33 @@
 
 ## 📋 **Version Control & Deployment Log**
 
-### 🔧 **v1.4-api-fix (Latest)** - August 1, 2025
+### 🔧 **v1.5-response-fix (Latest)** - August 1, 2025
+**📋 API Response Format Fix**
+
+**Issues Fixed:**
+- ✅ **Frontend/Backend response format mismatch**
+  - Frontend expected: `{ success: true, data: [...] }`
+  - Laravel API returned: `{ data: [...] }` (standard format)
+  - Fixed "Failed to load target matrix" error despite working API
+
+**Frontend Changes:**
+- Updated matrix loading to check `result.data` instead of `result.success`
+- Added proper HTTP status checking before JSON parsing
+- Updated master data loading for Laravel API format
+- Better error handling with specific error messages
+
+**Backend Changes:**
+- DependentController now returns consistent `{ data: [...] }` format
+- All deps endpoints standardized (regions, channels, suppliers, categories, salesmen)
+- Matches TargetController API format for consistency
+
+**Files Changed:**
+- `resources/views/targets/index.blade.php` (frontend response handling)
+- `app/Http/Controllers/Api/V1/DependentController.php` (consistent API format)
+
+---
+
+### 🔧 **v1.4-api-fix** - August 1, 2025
 **🔗 Frontend API Integration Fix**
 
 **Issues Fixed:**

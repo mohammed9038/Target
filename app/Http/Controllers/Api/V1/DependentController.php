@@ -30,7 +30,7 @@ class DependentController extends Controller
         }
         
         $regions = $query->orderBy('name')->get();
-        return response()->json($regions);
+        return response()->json(['data' => $regions]);
     }
 
     public function channels()
@@ -47,7 +47,7 @@ class DependentController extends Controller
         }
         
         $channels = $query->orderBy('name')->get();
-        return response()->json($channels);
+        return response()->json(['data' => $channels]);
     }
 
     public function salesmen()
@@ -78,7 +78,7 @@ class DependentController extends Controller
         }
 
         $salesmen = $query->orderBy('name')->get();
-        return response()->json($salesmen);
+        return response()->json(['data' => $salesmen]);
     }
 
     public function suppliers()
@@ -92,7 +92,7 @@ class DependentController extends Controller
         }
         
         $suppliers = $query->get();
-        return response()->json($suppliers);
+        return response()->json(['data' => $suppliers]);
     }
 
     public function categories()
@@ -108,6 +108,6 @@ class DependentController extends Controller
         }
         
         $categories = $query->get();
-        return response()->json($categories);
+        return response()->json(['data' => $categories]);
     }
 } 

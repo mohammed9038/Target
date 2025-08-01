@@ -285,12 +285,12 @@ async function loadMasterData() {
             responses.map(response => response.json())
         );
         
-        // Store master data
-        masterData.regions = regionsData.success ? regionsData.data : [];
-        masterData.channels = channelsData.success ? channelsData.data : [];
-        masterData.suppliers = suppliersData.success ? suppliersData.data : [];
-        masterData.categories = categoriesData.success ? categoriesData.data : [];
-        masterData.salesmen = salesmenData.success ? salesmenData.data : [];
+        // Store master data (Laravel API returns { "data": [...] } format)
+        masterData.regions = regionsData.data || [];
+        masterData.channels = channelsData.data || [];
+        masterData.suppliers = suppliersData.data || [];
+        masterData.categories = categoriesData.data || [];
+        masterData.salesmen = salesmenData.data || [];
         
         // Populate filters
         populateSelect("filter_region", masterData.regions, "id", "name");
@@ -339,14 +339,20 @@ async function loadTargetMatrix() {
         });
         
         const response = await fetch(`/api/targets/matrix?${params}`, apiOptions);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
         const result = await response.json();
         
-        if (result.success) {
+        // Laravel API returns { "data": [...] } format
+        if (result.data !== undefined) {
             matrixData = result.data;
             displayMatrixData(matrixData);
             showAlert(`Matrix loaded with ${matrixData.length} records`, "success");
         } else {
-            throw new Error(result.error || "Failed to load matrix");
+            throw new Error(result.message || result.error || "No data received from server");
         }
         
     } catch (error) {

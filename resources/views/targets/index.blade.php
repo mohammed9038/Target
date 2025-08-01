@@ -274,11 +274,11 @@ async function loadMasterData() {
     
     try {
         const responses = await Promise.all([
-            fetch(`${API_BASE}/api-handler.php?action=deps&type=regions`, apiOptions),
-            fetch(`${API_BASE}/api-handler.php?action=deps&type=channels`, apiOptions),
-            fetch(`${API_BASE}/api-handler.php?action=deps&type=suppliers`, apiOptions),
-            fetch(`${API_BASE}/api-handler.php?action=deps&type=categories`, apiOptions),
-            fetch(`${API_BASE}/api-handler.php?action=deps&type=salesmen`, apiOptions)
+            fetch(`/api/deps/regions`, apiOptions),
+            fetch(`/api/deps/channels`, apiOptions),
+            fetch(`/api/deps/suppliers`, apiOptions),
+            fetch(`/api/deps/categories`, apiOptions),
+            fetch(`/api/deps/salesmen`, apiOptions)
         ]);
         
         const [regionsData, channelsData, suppliersData, categoriesData, salesmenData] = await Promise.all(
@@ -333,13 +333,12 @@ async function loadTargetMatrix() {
     try {
         const filters = getCurrentFilters();
         const params = new URLSearchParams({
-            action: "matrix",
             year: year,
             month: month,
             ...filters
         });
         
-        const response = await fetch(`${API_BASE}/api-handler.php?${params}`, apiOptions);
+        const response = await fetch(`/api/targets/matrix?${params}`, apiOptions);
         const result = await response.json();
         
         if (result.success) {

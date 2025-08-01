@@ -161,6 +161,55 @@ Route::middleware(['auth'])->group(function () {
     
     // Debug route for testing matrix data
     Route::get('/debug-matrix', function() {
+        
+        // Test individual queries
+        $regions = DB::table('regions')->get();
+        $channels = DB::table('channels')->get();
+        $suppliers = DB::table('suppliers')->get();
+        $categories = DB::table('categories')->get();
+        $salesmen = DB::table('salesmen')->get();
+        
+        // Test the matrix query
+        $matrixQuery = DB::table('salesmen')
+            ->join('regions', 'salesmen.region_id', '=', 'regions.id')
+            ->join('channels', 'salesmen.channel_id', '=', 'channels.id')
+            ->crossJoin('suppliers')
+            ->crossJoin('categories')
+            ->where('suppliers.id', '=', DB::raw('categories.supplier_id'))
+            ->select([
+                'salesmen.id as salesman_id',
+                'salesmen.salesman_code',
+                'salesmen.name as salesman_name',
+                'salesmen.classification as salesman_classification',
+                'regions.name as region',
+                'regions.id as region_id',
+                'channels.name as channel',
+                'channels.id as channel_id',
+                'suppliers.name as supplier',
+                'suppliers.id as supplier_id',
+                'suppliers.classification as supplier_classification',
+                'categories.name as category',
+                'categories.id as category_id'
+            ])
+            ->get();
+        
+        return response()->json([
+            'regions_count' => $regions->count(),
+            'channels_count' => $channels->count(),
+            'suppliers_count' => $suppliers->count(),
+            'categories_count' => $categories->count(),
+            'salesmen_count' => $salesmen->count(),
+            'matrix_count' => $matrixQuery->count(),
+            'sample_regions' => $regions->take(2),
+            'sample_salesmen' => $salesmen->take(2),
+            'sample_matrix' => $matrixQuery->take(3),
+            'all_salesmen' => $salesmen,
+            'matrix_raw' => $matrixQuery
+        ]);
+    });
+    
+    // Original debug route
+    Route::get('/debug-matrix-old', function() {
         $user = auth()->user();
         $data = [];
         

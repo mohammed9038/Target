@@ -94,17 +94,25 @@ class DatabaseSeeder extends Seeder
         ]);
 
         // Create active periods
-        ActiveMonthYear::create([
-            'year' => date('Y'),
-            'month' => date('n'),
-            'is_open' => true,
-        ]);
+        ActiveMonthYear::updateOrCreate(
+            ['year' => 2025, 'month' => 8],
+            ['is_open' => true]
+        );
 
-        ActiveMonthYear::create([
-            'year' => date('Y'),
-            'month' => date('n') + 1,
-            'is_open' => false,
-        ]);
+        ActiveMonthYear::updateOrCreate(
+            ['year' => 2025, 'month' => 9],
+            ['is_open' => false]
+        );
+        
+        // Create current month period if different
+        $currentYear = (int)date('Y');
+        $currentMonth = (int)date('n');
+        if ($currentYear != 2025 || $currentMonth != 8) {
+            ActiveMonthYear::updateOrCreate(
+                ['year' => $currentYear, 'month' => $currentMonth],
+                ['is_open' => true]
+            );
+        }
 
         // Create admin user
         $admin = User::create([

@@ -307,8 +307,8 @@ class TargetController extends Controller
         
         // Get all possible combinations for the matrix
         $query = \DB::table('salesmen')
-            ->join('regions', 'salesmen.region_id', '=', 'regions.id')
-            ->join('channels', 'salesmen.channel_id', '=', 'channels.id')
+            ->leftJoin('regions', 'salesmen.region_id', '=', 'regions.id')
+            ->leftJoin('channels', 'salesmen.channel_id', '=', 'channels.id')
             ->crossJoin('suppliers')
             ->crossJoin('categories')
             ->where('suppliers.id', '=', \DB::raw('categories.supplier_id'))
@@ -336,10 +336,12 @@ class TargetController extends Controller
                 'salesmen.employee_code',
                 'salesmen.name as salesman_name',
                 'salesmen.classification as salesman_classification',
-                'regions.name as region',
-                'regions.id as region_id',
-                'channels.name as channel',
-                'channels.id as channel_id',
+                'salesmen.region_id',
+                'salesmen.channel_id',
+                \DB::raw('COALESCE(regions.name, "No Region") as region'),
+                \DB::raw('COALESCE(regions.id, 0) as region_id'),
+                \DB::raw('COALESCE(channels.name, "No Channel") as channel'),
+                \DB::raw('COALESCE(channels.id, 0) as channel_id'),
                 'suppliers.name as supplier',
                 'suppliers.id as supplier_id',
                 'suppliers.classification as supplier_classification',

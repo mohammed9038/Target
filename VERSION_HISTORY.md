@@ -2,7 +2,32 @@
 
 ## 📋 **Version Control & Deployment Log**
 
-### 🔧 **v1.5-response-fix (Latest)** - August 1, 2025
+### 🔧 **v1.6-matrix-data-fix (Latest)** - August 1, 2025
+**🗂️ Matrix Data Display Fix**
+
+**Issues Fixed:**
+- ✅ **Matrix showing 'N/A' and 'undefined' values**
+  - Changed INNER JOIN to LEFT JOIN for regions and channels tables
+  - Added COALESCE to handle null relationship values
+  - Provides meaningful fallback values instead of empty data
+
+**Query Improvements:**
+- LEFT JOIN regions/channels instead of INNER JOIN (prevents null exclusion)
+- COALESCE(regions.name, 'No Region') for missing region assignments
+- COALESCE(channels.name, 'No Channel') for missing channel assignments
+- Explicit selection of region_id and channel_id for better data handling
+
+**Impact:**
+- Matrix now displays proper region/channel names or clear fallbacks
+- Handles incomplete master data relationships gracefully
+- Better user experience with meaningful data display
+
+**Files Changed:**
+- `app/Http/Controllers/Api/V1/TargetController.php` (matrix query optimization)
+
+---
+
+### 🔧 **v1.5-response-fix** - August 1, 2025
 **📋 API Response Format Fix**
 
 **Issues Fixed:**

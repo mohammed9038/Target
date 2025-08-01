@@ -574,7 +574,7 @@ class TargetController extends Controller
         }
 
         $request->validate([
-            'file' => 'required|file|mimes:csv,xlsx,xls|max:10240', // 10MB max
+            'file' => 'required|file|mimetypes:text/csv,text/plain,application/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet|max:10240', // 10MB max
             'year' => 'required|integer|min:2020|max:2030',
             'month' => 'required|integer|min:1|max:12',
         ]);
@@ -599,9 +599,11 @@ class TargetController extends Controller
                 $content = mb_convert_encoding($content, 'UTF-8', $encoding);
             }
 
-            // Remove any BOM and special characters
-            $content = preg_replace('/[\x00-\x1F\x7F-\xFF]/', '', $content);
-            $content = preg_replace('/^\xEF\xBB\xBF/', '', $content); // Remove BOM if present
+            // Remove BOM if present but keep line endings
+            $content = preg_replace('/^\xEF\xBB\xBF/', '', $content);
+            
+            // Normalize line endings to \n
+            $content = str_replace(["\r\n", "\r"], "\n", $content);
             
             // Create a temporary file with the cleaned content
             $tempFile = tmpfile();
@@ -615,9 +617,6 @@ class TargetController extends Controller
                 return response()->json(['message' => 'File is empty or could not be read.'], 400);
             }
 
-            // Debug original headers
-            \Log::info('Original headers:', $headers);
-            
             // Clean and normalize headers - more permissive now
             $headers = array_map(function($header) {
                 // Remove any non-printable characters
@@ -628,9 +627,6 @@ class TargetController extends Controller
                 $header = preg_replace('/\s+/', ' ', $header);
                 return $header;
             }, $headers);
-            
-            // Debug cleaned headers
-            \Log::info('Cleaned headers:', $headers);
 
             // Expected headers mapping with more variations
             $headerMap = [
@@ -688,11 +684,10 @@ class TargetController extends Controller
                     }
                 }
             }
-            
-            // Debug found positions
-            \Log::info('Found header positions:', $positions);
+
 
             // Check required headers with better error messages
+            // Only employee_code is required for salesman identification (not salesman_code)
             $requiredFields = ['employee_code', 'supplier', 'category', 'amount'];
             $missingFields = [];
             foreach ($requiredFields as $field) {
@@ -737,9 +732,9 @@ class TargetController extends Controller
                     $employeeCode = preg_replace('/[^a-zA-Z0-9\-_.]/', '', $employeeCode);
                     
                     // Skip row if required data is missing
-                    if (empty($salesmanCode) && empty($employeeCode)) {
+                    if (empty($employeeCode)) {
                         $results['errors']++;
-                        $results['error_details'][] = "Row " . ($lineNumber + 1) . ": Missing salesman code or employee code - skipped";
+                        $results['error_details'][] = "Row " . ($lineNumber + 1) . ": Missing employee code - skipped";
                         $lineNumber++;
                         continue;
                     }
@@ -782,19 +777,17 @@ class TargetController extends Controller
                         continue;
                     }
 
-                    // Find salesman - skip if not found in master data
-                    $salesman = null;
-                    if (!empty($salesmanCode)) {
+                    // Find salesman by employee_code (primary method)
+                    $salesman = \App\Models\Salesman::where('employee_code', $employeeCode)->first();
+                    
+                    // Fallback: try salesman_code if provided and employee_code didn't work
+                    if (!$salesman && !empty($salesmanCode)) {
                         $salesman = \App\Models\Salesman::where('salesman_code', $salesmanCode)->first();
-                    }
-                    if (!$salesman && !empty($employeeCode)) {
-                        $salesman = \App\Models\Salesman::where('employee_code', $employeeCode)->first();
                     }
                     
                     if (!$salesman) {
-                        $identifier = !empty($salesmanCode) ? "salesman code: {$salesmanCode}" : "employee code: {$employeeCode}";
                         $results['errors']++;
-                        $results['error_details'][] = "Row " . ($lineNumber + 1) . ": Salesman not found for {$identifier} - skipped";
+                        $results['error_details'][] = "Row " . ($lineNumber + 1) . ": Salesman not found for employee code: {$employeeCode} - skipped";
                         $lineNumber++;
                         continue;
                     }

@@ -65,6 +65,9 @@ Route::prefix('v1')->group(function () {
             Route::get('/periods/check', [PeriodController::class, 'checkStatus']);
         });
 
+        // User info
+        Route::get('/user/info', [DependentController::class, 'userInfo']);
+
         // Dependent dropdowns
         Route::get('/deps/regions', [DependentController::class, 'regions']);
         Route::get('/deps/channels', [DependentController::class, 'channels']);

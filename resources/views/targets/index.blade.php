@@ -301,13 +301,49 @@
                 fetch(`/api/v1/deps/categories`).then(res => res.json()),
                 fetch(`/api/v1/deps/salesmen`).then(res => res.json())
             ]);
+            
             populateSelect("filter_region", regions.data, "id", "name");
             populateSelect("filter_channel", channels.data, "id", "name");
             populateSelect("filter_supplier", suppliers.data, "id", "name");
             populateSelect("filter_category", categories.data, "id", "name");
             populateSelect("filter_salesman", salesmen.data, "id", "name");
+            
+            // Auto-set user's classification filter based on their permissions
+            await setUserClassificationFilter(regions.data, channels.data, suppliers.data);
+            
         } catch (error) {
             showAlert("Failed to load filter data.", "error");
+        }
+    }
+
+    async function setUserClassificationFilter(regions, channels, suppliers) {
+        try {
+            // Get user info from API
+            const userResponse = await fetch('/api/v1/user/info');
+            if (!userResponse.ok) return;
+            
+            const userData = await userResponse.json();
+            const user = userData.data;
+            
+            // Auto-set filters based on user's permissions
+            const classificationSelect = document.getElementById('filter_classification');
+            
+            if (!user.is_admin && user.classification) {
+                // Set user's classification filter
+                classificationSelect.value = user.classification;
+                
+                // Auto-select region and channel if user has only one option
+                if (regions.length === 1) {
+                    document.getElementById('filter_region').value = regions[0].id;
+                }
+                if (channels.length === 1) {
+                    document.getElementById('filter_channel').value = channels[0].id;
+                }
+                
+                console.log(`Auto-applied user filters - Classification: ${user.classification}, Regions: ${regions.length}, Channels: ${channels.length}`);
+            }
+        } catch (error) {
+            console.log('Could not auto-set user filters:', error);
         }
     }
 

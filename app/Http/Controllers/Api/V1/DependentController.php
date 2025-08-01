@@ -16,6 +16,21 @@ class DependentController extends Controller
     {
         $this->middleware('auth');
     }
+
+    public function userInfo()
+    {
+        $user = auth()->user();
+        $scope = $user->scope();
+        
+        return response()->json([
+            'data' => [
+                'role' => $user->role,
+                'classification' => $user->classification,
+                'is_admin' => $user->isAdmin(),
+                'scope' => $scope
+            ]
+        ]);
+    }
     public function regions()
     {
         $user = auth()->user();

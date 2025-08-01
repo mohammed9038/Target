@@ -304,137 +304,50 @@ class TargetController extends Controller
         ]);
 
         $user = Auth::user();
-        
-        // Get all possible combinations for the matrix
-        $query = \DB::table('salesmen')
+
+        // 1. Get Salesmen
+        $salesmenQuery = \DB::table('salesmen')
             ->leftJoin('regions', 'salesmen.region_id', '=', 'regions.id')
             ->leftJoin('channels', 'salesmen.channel_id', '=', 'channels.id')
-            ->crossJoin('suppliers')
-            ->crossJoin('categories')
-            ->where('suppliers.id', '=', \DB::raw('categories.supplier_id'))
-            // Ensure classification compatibility: salesman and supplier must have matching classifications
-            ->where(function($q) {
-                $q->where(function($subq) {
-                    // Both are 'food'
-                    $subq->where('salesmen.classification', 'food')
-                         ->where('suppliers.classification', 'food');
-                })->orWhere(function($subq) {
-                    // Both are 'non_food'  
-                    $subq->where('salesmen.classification', 'non_food')
-                         ->where('suppliers.classification', 'non_food');
-                })->orWhere(function($subq) {
-                    // Salesman has 'both' - can work with any supplier
-                    $subq->where('salesmen.classification', 'both');
-                })->orWhere(function($subq) {
-                    // Supplier has 'both' - can work with any salesman
-                    $subq->where('suppliers.classification', 'both');
-                });
-            })
-            ->select([
+            ->select(
                 'salesmen.id as salesman_id',
                 'salesmen.salesman_code',
-                'salesmen.employee_code',
                 'salesmen.name as salesman_name',
                 'salesmen.classification as salesman_classification',
-                'salesmen.region_id',
-                'salesmen.channel_id',
-                \DB::raw('COALESCE(regions.name, "No Region") as region'),
-                \DB::raw('COALESCE(regions.id, 0) as region_id'),
-                \DB::raw('COALESCE(channels.name, "No Channel") as channel'),
-                \DB::raw('COALESCE(channels.id, 0) as channel_id'),
-                'suppliers.name as supplier',
-                'suppliers.id as supplier_id',
-                'suppliers.classification as supplier_classification',
-                'categories.name as category',
-                'categories.id as category_id'
-            ]);
+                'regions.name as region_name',
+                'channels.name as channel_name'
+            );
 
-        // Apply user scope for managers
-        if ($user->isManager()) {
-            $regionIds = $user->getRegionIds();
-            $channelIds = $user->getChannelIds();
-            
-            if (!empty($regionIds)) {
-                $query->whereIn('salesmen.region_id', $regionIds);
-            }
-            if (!empty($channelIds)) {
-                $query->whereIn('salesmen.channel_id', $channelIds);
-            }
-            
-            // Apply classification filtering
-            if ($user->classification && $user->classification !== 'both') {
-                $query->where('salesmen.classification', $user->classification);
-                $query->where('suppliers.classification', $user->classification);
-            }
-        }
+        // 2. Get Suppliers and Categories
+        $suppliersQuery = \DB::table('suppliers')
+            ->join('categories', 'suppliers.id', '=', 'categories.supplier_id')
+            ->select(
+                'suppliers.id as supplier_id',
+                'suppliers.name as supplier_name',
+                'suppliers.classification as supplier_classification',
+                'categories.id as category_id',
+                'categories.name as category_name'
+            );
 
         // Apply filters
         if ($request->filled('region_id')) {
-            $query->where('salesmen.region_id', $request->region_id);
-        }
-        if ($request->filled('channel_id')) {
-            $query->where('salesmen.channel_id', $request->channel_id);
+            $salesmenQuery->where('salesmen.region_id', $request->region_id);
         }
         if ($request->filled('supplier_id')) {
-            $query->where('suppliers.id', $request->supplier_id);
-        }
-        if ($request->filled('category_id')) {
-            $query->where('categories.id', $request->category_id);
-        }
-        if ($request->filled('salesman_id')) {
-            $query->where('salesmen.id', $request->salesman_id);
-        }
-        if ($request->filled('classification')) {
-            if ($request->classification === 'both') {
-                // No additional filter needed for 'both'
-            } else {
-                $query->where('salesmen.classification', $request->classification);
-            }
+            $suppliersQuery->where('suppliers.id', $request->supplier_id);
         }
 
-        $combinations = $query->get();
-
-        // Get existing targets for this period
+        // 3. Get existing targets
         $existingTargets = SalesTarget::where('year', $request->year)
             ->where('month', $request->month)
-            ->get()
-            ->keyBy(function($target) {
-                return $target->salesman_id . '_' . $target->supplier_id . '_' . $target->category_id;
-            });
-
-        // Build matrix data
-        $matrixData = [];
-        foreach ($combinations as $combo) {
-            $key = $combo->salesman_id . '_' . $combo->supplier_id . '_' . $combo->category_id;
-            $existingTarget = $existingTargets->get($key);
-            
-            $matrixData[] = [
-                'salesman_id' => $combo->salesman_id,
-                'salesman_code' => $combo->salesman_code,
-                'employee_code' => $combo->employee_code,
-                'salesman_name' => $combo->salesman_name,
-                'classification' => $combo->salesman_classification,
-                'salesman_classification' => $combo->salesman_classification,
-                'supplier_classification' => $combo->supplier_classification,
-                'status' => 'Active', // All salesmen are considered active
-                'year' => $request->year,
-                'month' => date('M', mktime(0, 0, 0, $request->month, 1)),
-                'region' => $combo->region,
-                'region_id' => $combo->region_id,
-                'channel' => $combo->channel,
-                'channel_id' => $combo->channel_id,
-                'supplier' => $combo->supplier,
-                'supplier_id' => $combo->supplier_id,
-                'category' => $combo->category,
-                'category_id' => $combo->category_id,
-                'route_code' => '', // Empty as in CSV
-                'amount' => $existingTarget ? $existingTarget->target_amount : null,
-                'target_id' => $existingTarget ? $existingTarget->id : null,
-            ];
-        }
+            ->get(['salesman_id', 'supplier_id', 'category_id', 'target_amount']);
 
         return response()->json([
-            'data' => $matrixData
+            'data' => [
+                'salesmen' => $salesmenQuery->get(),
+                'suppliers' => $suppliersQuery->get(),
+                'targets' => $existingTargets,
+            ]
         ]);
     }
 

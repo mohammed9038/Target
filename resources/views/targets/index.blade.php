@@ -507,7 +507,7 @@ async function saveAllTargets() {
     }
     
     try {
-        const response = await fetch(`${API_BASE}/save-targets.php`, {
+        const response = await fetch(`/api/targets/bulk-save`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -566,7 +566,7 @@ async function saveIndividualTarget(button) {
     button.innerHTML = `<i class="bi bi-hourglass-split"></i>`;
     
     try {
-        const response = await fetch(`${API_BASE}/save-targets.php`, {
+        const response = await fetch(`/api/targets/bulk-save`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",

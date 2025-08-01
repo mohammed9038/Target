@@ -110,96 +110,89 @@
     </div>
 </div>
 
-<!-- Modern Target Matrix -->
-<div class="card border-0 shadow-sm" style="border-radius: 12px;">
-    <div class="card-header border-0 bg-white d-flex justify-content-between align-items-center" style="border-radius: 12px 12px 0 0;">
-        <h5 class="card-title mb-0 fw-semibold d-flex align-items-center">
-            <div class="p-2 rounded-circle bg-success bg-opacity-10 me-3">
-                <i class="bi bi-grid-3x3-gap text-success"></i>
-            </div>
+<!-- Compact Target Matrix -->
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-white d-flex justify-content-between align-items-center py-2">
+        <h6 class="card-title mb-0 fw-semibold d-flex align-items-center">
+            <i class="bi bi-grid-3x3-gap text-success me-2"></i>
             <?php echo e(__('Target Matrix')); ?>
 
-        </h5>
-        <div class="d-flex align-items-center gap-3">
-            <span class="badge bg-info bg-opacity-10 text-info px-3 py-2">
-                <i class="bi bi-info-circle me-1"></i><?php echo e(__('Enter target amounts')); ?>
+        </h6>
+        <small class="text-muted">
+            <i class="bi bi-info-circle me-1"></i><?php echo e(__('Enter target amounts')); ?>
 
-            </span>
-        </div>
+        </small>
     </div>
     <div class="card-body p-0">
         <!-- Loading State -->
-        <div id="matrix-loading" class="text-center py-5" style="display: none;">
-            <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
+        <div id="matrix-loading" class="text-center py-3" style="display: none;">
+            <div class="spinner-border text-primary mb-2" role="status">
                 <span class="visually-hidden"><?php echo e(__('Loading...')); ?></span>
             </div>
-            <h6 class="text-primary fw-semibold"><?php echo e(__('Loading target matrix...')); ?></h6>
-            <p class="text-muted small mb-0"><?php echo e(__('Please wait while we fetch the data')); ?></p>
+            <small class="text-muted"><?php echo e(__('Loading target matrix...')); ?></small>
         </div>
         
         <!-- Matrix Container -->
         <div id="matrix-container" style="display: none;">
             <div class="table-responsive">
-                <table class="table table-hover mb-0" id="target-matrix" style="font-size: 0.9rem;">
-                    <thead style="background: linear-gradient(135deg, #4f46e5 0%, #3730a3 100%); color: white;">
+                <table class="table table-hover table-sm mb-0" id="target-matrix" style="font-size: 0.85rem;">
+                    <thead class="table-dark">
                         <tr>
-                            <th class="border-0 py-3 px-4 fw-semibold">
-                                <i class="bi bi-person-badge me-2"></i><?php echo e(__('Salesman')); ?>
+                            <th class="py-2 px-3 small">
+                                <i class="bi bi-person-badge me-1"></i><?php echo e(__('Salesman')); ?>
 
                             </th>
-                            <th class="border-0 py-3 px-4 fw-semibold">
-                                <i class="bi bi-geo-alt me-2"></i><?php echo e(__('Region')); ?>
+                            <th class="py-2 px-3 small">
+                                <i class="bi bi-geo-alt me-1"></i><?php echo e(__('Region')); ?>
 
                             </th>
-                            <th class="border-0 py-3 px-4 fw-semibold">
-                                <i class="bi bi-diagram-3 me-2"></i><?php echo e(__('Channel')); ?>
+                            <th class="py-2 px-3 small">
+                                <i class="bi bi-diagram-3 me-1"></i><?php echo e(__('Channel')); ?>
 
                             </th>
-                            <th class="border-0 py-3 px-4 fw-semibold">
-                                <i class="bi bi-building me-2"></i><?php echo e(__('Supplier')); ?>
+                            <th class="py-2 px-3 small">
+                                <i class="bi bi-building me-1"></i><?php echo e(__('Supplier')); ?>
 
                             </th>
-                            <th class="border-0 py-3 px-4 fw-semibold">
-                                <i class="bi bi-tags me-2"></i><?php echo e(__('Category')); ?>
+                            <th class="py-2 px-3 small">
+                                <i class="bi bi-tags me-1"></i><?php echo e(__('Category')); ?>
 
                             </th>
-                            <th class="border-0 py-3 px-4 fw-semibold">
-                                <i class="bi bi-diagram-2 me-2"></i><?php echo e(__('Classification')); ?>
+                            <th class="py-2 px-3 small">
+                                <i class="bi bi-diagram-2 me-1"></i><?php echo e(__('Type')); ?>
 
                             </th>
-                            <th class="border-0 py-3 px-4 fw-semibold text-center">
-                                <i class="bi bi-currency-dollar me-2"></i><?php echo e(__('Target Amount')); ?>
+                            <th class="py-2 px-3 small text-center">
+                                <i class="bi bi-currency-dollar me-1"></i><?php echo e(__('Amount')); ?>
 
                             </th>
                         </tr>
                     </thead>
-                    <tbody style="background-color: #fafbfc;"></tbody>
+                    <tbody></tbody>
                 </table>
             </div>
         </div>
         
         <!-- Empty State -->
-        <div id="matrix-empty" class="text-center py-5" style="background-color: #fafbfc;">
-            <div class="mb-4">
-                <div class="d-inline-flex p-4 rounded-circle bg-light border">
-                    <i class="bi bi-table text-muted" style="font-size: 2.5rem;"></i>
-                </div>
+        <div id="matrix-empty" class="text-center py-4">
+            <div class="mb-3">
+                <i class="bi bi-table text-muted" style="font-size: 2rem;"></i>
             </div>
-            <h6 class="text-dark fw-semibold mb-2"><?php echo e(__('No Data Available')); ?></h6>
-            <p class="text-muted mb-4"><?php echo e(__('Please select year, month and click "Load Matrix" to view targets.')); ?></p>
-            <div class="d-flex justify-content-center gap-2">
-                <span class="badge bg-primary bg-opacity-10 text-primary px-3 py-2">
+            <h6 class="text-dark mb-2"><?php echo e(__('No Data Available')); ?></h6>
+            <p class="text-muted small mb-3"><?php echo e(__('Please select year, month and click "Load Matrix" to view targets.')); ?></p>
+            <div class="d-flex justify-content-center gap-1 flex-wrap">
+                <small class="badge bg-primary bg-opacity-10 text-primary px-2 py-1">
                     <i class="bi bi-1-circle me-1"></i><?php echo e(__('Select Period')); ?>
 
-                </span>
-                <span class="badge bg-success bg-opacity-10 text-success px-3 py-2">
+                </small>
+                <small class="badge bg-success bg-opacity-10 text-success px-2 py-1">
                     <i class="bi bi-2-circle me-1"></i><?php echo e(__('Apply Filters')); ?>
 
-                </span>
-                <span class="badge bg-info bg-opacity-10 text-info px-3 py-2">
+                </small>
+                <small class="badge bg-info bg-opacity-10 text-info px-2 py-1">
                     <i class="bi bi-3-circle me-1"></i><?php echo e(__('Load Matrix')); ?>
 
-                </span>
+                </small>
             </div>
         </div>
     </div>

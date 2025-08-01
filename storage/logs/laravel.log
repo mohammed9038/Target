@@ -10134,3 +10134,11 @@ operable program or batch file.
 #3 C:\\New target\\target-system\\artisan(35): Illuminate\\Foundation\\Console\\Kernel->handle(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
 #4 {main}
 "} 
+[2025-08-01 15:45:03] local.ERROR: Command "tinker" is not defined. {"exception":"[object] (Symfony\\Component\\Console\\Exception\\CommandNotFoundException(code: 0): Command \"tinker\" is not defined. at C:\\New target\\target-system\\vendor\\symfony\\console\\Application.php:725)
+[stacktrace]
+#0 C:\\New target\\target-system\\vendor\\symfony\\console\\Application.php(283): Symfony\\Component\\Console\\Application->find('tinker')
+#1 C:\\New target\\target-system\\vendor\\symfony\\console\\Application.php(192): Symfony\\Component\\Console\\Application->doRun(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#2 C:\\New target\\target-system\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Console\\Kernel.php(197): Symfony\\Component\\Console\\Application->run(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#3 C:\\New target\\target-system\\artisan(35): Illuminate\\Foundation\\Console\\Kernel->handle(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#4 {main}
+"} 

@@ -155,17 +155,35 @@ if (isset($seedReturn) && $seedReturn === 0) {
     echo "✅ Database seeded with initial data\n";
 }
 
+echo "\n🔧 Step 6: Setting up subdirectory routing...\n";
+
+// Setup .htaccess for subdirectory deployment
+if (file_exists('.htaccess.subdirectory')) {
+    echo "📁 Setting up main directory .htaccess for subdirectory routing...\n";
+    echo "💡 IMPORTANT: Copy .htaccess.subdirectory to your main public_html/.htaccess\n";
+    echo "   Command: cp target/.htaccess.subdirectory .htaccess\n";
+    echo "   (Run this from your public_html directory)\n";
+} else {
+    echo "⚠️  Warning: .htaccess.subdirectory file not found!\n";
+    echo "   This file is needed for proper API routing in subdirectories.\n";
+}
+
 echo "\n📋 Next Steps:\n";
 echo "1. Verify your .env file has correct database credentials\n";
-echo "2. Ensure your domain points to the public/ directory\n";
-echo "3. Test the application by visiting your domain\n";
-echo "4. Login with admin credentials (check DatabaseSeeder.php)\n";
+echo "2. Copy .htaccess.subdirectory to public_html/.htaccess (CRITICAL for API routing)\n";
+echo "3. Ensure your APP_URL in .env includes /target subdirectory\n";
+echo "4. Test the application by visiting https://yourdomain.com/target\n";
+echo "5. Login with admin credentials\n";
 
 echo "\n🔐 Default Admin Credentials:\n";
 echo "Username: admin\n";
 echo "Password: admin123\n";
 echo "(Change these immediately after first login!)\n";
 
+echo "\n🌐 Application URLs:\n";
+echo "Main App: https://yourdomain.com/target\n";
+echo "API Base: https://yourdomain.com/target/api/v1/\n";
+
 echo "\n✅ Deployment completed successfully!\n";
-echo "Your Target Management System is ready to use.\n";
+echo "Your Target Management System is ready for Hostinger subdirectory deployment.\n";
 ?>

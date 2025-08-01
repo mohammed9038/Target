@@ -20,8 +20,9 @@ Before deploying to Hostinger, ensure you have:
    - Note down: database name, username, password
 
 2. **Domain Configuration**
-   - If using a subdomain, point it to `public_html/public` directory
-   - If using main domain, you'll use the root .htaccess redirect
+   - **IMPORTANT**: For subdirectory deployment, keep domain pointing to `public_html`
+   - The app will be accessible at `yourdomain.com/target`
+   - DO NOT point domain to `public_html/target/public` - this breaks API routing
 
 ### Step 2: Upload Files from GitHub
 

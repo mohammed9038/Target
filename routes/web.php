@@ -143,29 +143,8 @@ Route::middleware(['auth'])->group(function () {
         Route::resource('users', UserController::class);
     });
     
-    // Test auth status
-    Route::get('/api/test-auth', function() {
-        return response()->json([
-            'authenticated' => auth()->check(),
-            'user' => auth()->user() ? auth()->user()->email : null,
-            'guard' => config('auth.defaults.guard')
-        ]);
-    });
-    Route::get('/api/periods/check', [ApiPeriodController::class, 'checkStatus']);
-    Route::get('/api/targets/matrix', [ApiTargetController::class, 'getMatrix']);
-    Route::post('/api/targets/bulk-save', [ApiTargetController::class, 'bulkSave']);
-    Route::post('/api/targets/upload', [ApiTargetController::class, 'upload']);
-    Route::get('/api/targets/template', [ApiTargetController::class, 'downloadTemplate']);
-    Route::get('/api/deps/regions', [ApiDependentController::class, 'regions']);
-    Route::get('/api/deps/channels', [ApiDependentController::class, 'channels']);
-    Route::get('/api/deps/suppliers', [ApiDependentController::class, 'suppliers']);
-    Route::get('/api/deps/categories', [ApiDependentController::class, 'categories']);
-    Route::get('/api/deps/salesmen', [ApiDependentController::class, 'salesmen']);
-    
-    // API endpoints for targets and reports
-    Route::get('/api/targets', [ApiTargetController::class, 'index']);
-    Route::get('/api/reports/summary', [ApiReportController::class, 'summary']);
-    Route::get('/api/reports/export.xlsx', [ApiReportController::class, 'export']);
+    // Note: API routes are now properly defined in routes/api.php with /v1 prefix
+    // All API endpoints should use the /api/v1/ prefix for consistency
     
     // Debug route for testing API endpoints
     Route::get('/debug-api', function() {

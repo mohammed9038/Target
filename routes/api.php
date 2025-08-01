@@ -76,7 +76,7 @@ Route::prefix('v1')->group(function () {
         // Targets (Admin and Manager)
         Route::apiResource('targets', TargetController::class);
         Route::post('/targets/bulk', [TargetController::class, 'bulkUpsert']);
-        Route::get('v1/targets/matrix', [TargetController::class, 'getMatrix']);
+        Route::get('/targets/matrix', [TargetController::class, 'getMatrix']);
         Route::post('/targets/bulk-save', [TargetController::class, 'bulkSave']);
         Route::get('/targets/export', [TargetController::class, 'exportCsv']);
 

@@ -13,6 +13,15 @@
         <button type="button" class="btn btn-success" onclick="saveAllTargets()" id="saveAllBtn">
             <i class="bi bi-check-circle me-2"></i>{{ __('Save All Targets') }}
         </button>
+        <button type="button" class="btn btn-outline-secondary" onclick="exportTargets()">
+            <i class="bi bi-file-earmark-spreadsheet me-2"></i>{{ __('Export CSV') }}
+        </button>
+        <button type="button" class="btn btn-outline-primary" onclick="showUploadModal()">
+            <i class="bi bi-upload me-2"></i>{{ __('Upload Targets') }}
+        </button>
+        <button type="button" class="btn btn-outline-info" onclick="downloadTemplate()">
+            <i class="bi bi-download me-2"></i>{{ __('Download Template') }}
+        </button>
     </div>
 </div>
 
@@ -131,11 +140,35 @@
         </div>
     </div>
 </div>
+
+<!-- Upload Modal -->
+<div class="modal fade" id="uploadModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">{{ __('Upload Targets') }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="uploadForm" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label for="upload_file" class="form-label">{{ __('Select CSV File') }}</label>
+                        <input type="file" class="form-control" id="upload_file" name="csv_file" accept=".csv" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('Cancel') }}</button>
+                <button type="button" class="btn btn-primary" onclick="uploadTargets()">{{ __('Upload') }}</button>
+            </div>
+        </div>
+    </div>
+</div>
 @endsection
 
 @push('scripts')
 <script>
-    console.log("🎯 TARGET PAGE SCRIPT LOADED - V3.0 FINAL");
+    console.log("🎯 TARGET PAGE SCRIPT LOADED - V3.1 FINAL");
 
     let isPeriodOpen = false;
 
@@ -158,26 +191,27 @@
 
     function populateSelect(elementId, data, valueField, textField) {
         const select = document.getElementById(elementId);
-        if (!select) return;
-        const firstOption = select.options[0];
-        select.innerHTML = "";
-        select.appendChild(firstOption);
-        if (data) data.forEach(item => {
-            const option = document.createElement("option");
-            option.value = item[valueField];
-            option.textContent = item[textField];
-            select.appendChild(option);
-        });
+        if (select) {
+            const firstOption = select.options[0];
+            select.innerHTML = "";
+            select.appendChild(firstOption);
+            if (data) data.forEach(item => {
+                const option = document.createElement("option");
+                option.value = item[valueField];
+                option.textContent = item[textField];
+                select.appendChild(option);
+            });
+        }
     }
 
     async function loadMasterData() {
         try {
             const [regions, channels, suppliers, categories, salesmen] = await Promise.all([
-                fetch(`/api/deps/regions`).then(res => res.json()),
-                fetch(`/api/deps/channels`).then(res => res.json()),
-                fetch(`/api/deps/suppliers`).then(res => res.json()),
-                fetch(`/api/deps/categories`).then(res => res.json()),
-                fetch(`/api/deps/salesmen`).then(res => res.json())
+                fetch(`/api/v1/deps/regions`).then(res => res.json()),
+                fetch(`/api/v1/deps/channels`).then(res => res.json()),
+                fetch(`/api/v1/deps/suppliers`).then(res => res.json()),
+                fetch(`/api/v1/deps/categories`).then(res => res.json()),
+                fetch(`/api/v1/deps/salesmen`).then(res => res.json())
             ]);
             populateSelect("filter_region", regions.data, "id", "name");
             populateSelect("filter_channel", channels.data, "id", "name");
@@ -190,19 +224,24 @@
     }
 
     function getCurrentFilters() {
-        const filters = {};
-        ['year', 'month', 'region_id', 'channel_id', 'supplier_id', 'category_id', 'salesman_id', 'classification'].forEach(id => {
-            const key = id.includes('_') ? id : `filter_${id}`;
-            const element = document.getElementById(key.replace('filter_year', 'target_year').replace('filter_month', 'target_month'));
-            if (element && element.value) filters[id] = element.value;
-        });
+        const filters = {
+            year: document.getElementById('target_year').value,
+            month: document.getElementById('target_month').value,
+            region_id: document.getElementById('filter_region').value,
+            channel_id: document.getElementById('filter_channel').value,
+            supplier_id: document.getElementById('filter_supplier').value,
+            category_id: document.getElementById('filter_category').value,
+            salesman_id: document.getElementById('filter_salesman').value,
+            classification: document.getElementById('filter_classification').value
+        };
+        // Remove empty filters
+        Object.keys(filters).forEach(key => (filters[key] === '') && delete filters[key]);
         return filters;
     }
 
     async function loadTargetMatrix() {
         const year = document.getElementById("target_year").value;
         const month = document.getElementById("target_month").value;
-
         if (!year || !month) {
             showAlert("Please select both Year and Month.", "warning");
             return;
@@ -214,19 +253,16 @@
         
         document.getElementById("matrix-loading").style.display = "block";
         document.getElementById("matrix-container").style.display = "none";
-        document.getElementById("matrix-empty").style.display = "none";
 
         const params = new URLSearchParams(getCurrentFilters());
         try {
             const response = await fetch(`/api/v1/targets/matrix?${params}`);
-            const result = await response.json();
+            if (!response.ok) throw new Error((await response.json()).message || 'Failed to load data.');
             
-            if (!response.ok) throw new Error(result.message || 'Failed to load data.');
-
+            const result = await response.json();
             isPeriodOpen = result.data.is_period_open;
-            document.getElementById("saveAllBtn").style.display = isPeriodOpen ? 'block' : 'none';
+            document.getElementById("saveAllBtn").style.display = isPeriodOpen ? 'flex' : 'none';
             renderMatrix(result.data);
-            showAlert("Matrix loaded successfully.", "success");
 
         } catch (error) {
             showAlert(error.message, "error");
@@ -241,7 +277,7 @@
     function renderMatrix({ salesmen, suppliers, targets }) {
         const tbody = document.querySelector("#target-matrix tbody");
         tbody.innerHTML = "";
-
+        
         if (salesmen.length === 0 || suppliers.length === 0) {
             document.getElementById("matrix-empty").style.display = "block";
             return;
@@ -252,25 +288,22 @@
             return map;
         }, {});
 
-        salesmen.forEach(salesman => {
-            suppliers.forEach(supplier => {
-                if (isClassificationCompatible(salesman.salesman_classification, supplier.supplier_classification)) {
-                    const tr = document.createElement("tr");
-                    const targetKey = `${salesman.salesman_id}-${supplier.supplier_id}-${supplier.category_id}`;
-                    const targetAmount = targetsMap[targetKey] || "";
-                    tr.innerHTML = `
-                        <td>${salesman.salesman_name}</td>
-                        <td>${salesman.region_name}</td>
-                        <td>${salesman.channel_name}</td>
-                        <td>${supplier.supplier_name}</td>
-                        <td>${supplier.category_name}</td>
-                        <td><input type="number" class="form-control form-control-sm" value="${targetAmount}" 
-                                   ${!isPeriodOpen ? 'disabled' : ''}
-                                   data-salesman-id="${salesman.salesman_id}"
-                                   data-supplier-id="${supplier.supplier_id}"
-                                   data-category-id="${supplier.category_id}"></td>
-                    `;
-                    tbody.appendChild(tr);
+        salesmen.forEach(s => {
+            suppliers.forEach(sup => {
+                if (isClassificationCompatible(s.salesman_classification, sup.supplier_classification)) {
+                    const key = `${s.salesman_id}-${sup.supplier_id}-${sup.category_id}`;
+                    tbody.innerHTML += `
+                        <tr>
+                            <td>${s.salesman_name}</td>
+                            <td>${s.region_name}</td>
+                            <td>${s.channel_name}</td>
+                            <td>${sup.supplier_name}</td>
+                            <td>${sup.category_name}</td>
+                            <td><input type="number" class="form-control form-control-sm" 
+                                       value="${targetsMap[key] || ''}" ${!isPeriodOpen ? 'disabled' : ''}
+                                       data-salesman-id="${s.salesman_id}" data-supplier-id="${sup.supplier_id}" 
+                                       data-category-id="${sup.category_id}"></td>
+                        </tr>`;
                 }
             });
         });
@@ -282,11 +315,7 @@
     }
 
     async function saveAllTargets() {
-        if (!isPeriodOpen) {
-            showAlert("This period is closed for editing.", "warning");
-            return;
-        }
-
+        if (!isPeriodOpen) return;
         const targetsToSave = [];
         document.querySelectorAll("#target-matrix input").forEach(input => {
             if (input.value.trim() !== '') {
@@ -294,7 +323,7 @@
                     salesman_id: input.dataset.salesmanId,
                     supplier_id: input.dataset.supplierId,
                     category_id: input.dataset.categoryId,
-                    target_amount: parseFloat(input.value) || 0
+                    target_amount: parseFloat(input.value)
                 });
             }
         });
@@ -303,13 +332,13 @@
             showAlert("No targets to save.", "info");
             return;
         }
-        
+
         const saveBtn = document.getElementById("saveAllBtn");
         saveBtn.disabled = true;
         saveBtn.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Saving...`;
 
         try {
-            const response = await fetch(`/api/targets/bulk-save`, {
+            const response = await fetch(`/api/v1/targets/bulk-save`, {
                 method: 'POST',
                 headers: apiOptions.headers,
                 body: JSON.stringify({
@@ -319,8 +348,8 @@
                 })
             });
             const result = await response.json();
-            if (!response.ok) throw new Error(result.message || 'Failed to save targets.');
-            showAlert(`${result.saved_count} targets saved successfully.`, "success");
+            if (!response.ok) throw new Error(result.message);
+            showAlert(`${result.saved_count} targets saved.`, "success");
         } catch (error) {
             showAlert(error.message, "error");
         } finally {
@@ -329,7 +358,12 @@
         }
     }
     
-    document.addEventListener("DOMContentLoaded", loadMasterData);
+    // Placeholder functions for export/upload
+    function exportTargets() { showAlert('Export function coming soon!', 'info'); }
+    function showUploadModal() { new bootstrap.Modal(document.getElementById('uploadModal')).show(); }
+    function downloadTemplate() { showAlert('Template download coming soon!', 'info'); }
+    async function uploadTargets() { showAlert('Upload function coming soon!', 'info'); }
 
+    document.addEventListener("DOMContentLoaded", loadMasterData);
 </script>
 @endpush

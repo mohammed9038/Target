@@ -584,6 +584,17 @@ class TargetController extends Controller
             $year = $request->input('year');
             $month = $request->input('month');
             
+            // Check if period is open for uploads
+            $period = ActiveMonthYear::where('year', $year)
+                                    ->where('month', $month)
+                                    ->first();
+
+            if (!$period || !$period->is_open) {
+                return response()->json([
+                    'message' => 'Upload not allowed. The period ' . date('F Y', mktime(0, 0, 0, $month, 1, $year)) . ' is closed for target updates.'
+                ], 422);
+            }
+            
             $results = [
                 'processed' => 0,
                 'created' => 0,
@@ -874,16 +885,16 @@ class TargetController extends Controller
             if ($salesmen->isEmpty()) {
                 // Fallback to static sample data if no salesmen in database
                 $csvContent = [
-                    'Salesman Code,Employee Code,Salesman Name,Region,Channel,Supplier,Category,Amount',
-                    'SAL0001,EMP001,John Doe,North Region,Retail,AGUS,FLOUR,1000.00',
-                    'SAL0002,EMP002,Jane Smith,South Region,Wholesale,KORHAN,DAIRY,1500.00',
-                    'SAL0003,EMP003,Mike Johnson,East Region,Retail,FONTERRA,CHEESE,1200.00',
-                    'SAL0004,EMP004,Sarah Wilson,West Region,Wholesale,HOBBY,SNACKS,800.00',
-                    'SAL0005,EMP005,David Brown,Central Region,Retail,MAZRAA,BEVERAGES,2000.00'
+                    'Classification,Status,Year,Month,Region,Channel,Supplier,Category,RouteCode,Salesman Code,Employee Code,Salesmen Name,Amount',
+                    'food,Active,2025,08,North Region,Retail,AGUS,FLOUR,,SAL0001,EMP001,John Doe,1000.00',
+                    'food,Active,2025,08,South Region,Wholesale,KORHAN,DAIRY,,SAL0002,EMP002,Jane Smith,1500.00',
+                    'non_food,Active,2025,08,East Region,Retail,FONTERRA,CHEESE,,SAL0003,EMP003,Mike Johnson,1200.00',
+                    'non_food,Active,2025,08,West Region,Wholesale,HOBBY,SNACKS,,SAL0004,EMP004,Sarah Wilson,800.00',
+                    'food,Active,2025,08,Central Region,Retail,MAZRAA,BEVERAGES,,SAL0005,EMP005,David Brown,2000.00'
                 ];
             } else {
-                // Create CSV with real data
-                $csvContent = ['Salesman Code,Employee Code,Salesman Name,Region,Channel,Supplier,Category,Amount'];
+                // Create CSV with real data - match export format exactly
+                $csvContent = ['Classification,Status,Year,Month,Region,Channel,Supplier,Category,RouteCode,Salesman Code,Employee Code,Salesmen Name,Amount'];
                 
                 // Get some real suppliers and categories for the template
                 $suppliers = \App\Models\Supplier::with('categories')->take(3)->get();
@@ -907,15 +918,20 @@ class TargetController extends Controller
                 foreach ($salesmen as $index => $salesman) {
                     $supplierCategory = $sampleSupplierCategory[$index % count($sampleSupplierCategory)];
                     $csvContent[] = sprintf(
-                        '%s,%s,%s,%s,%s,%s,%s,%s',
-                        $salesman->salesman_code ?? 'SAL' . str_pad($salesman->id, 4, '0', STR_PAD_LEFT),
-                        $salesman->employee_code ?? '',
-                        $salesman->name,
-                        $salesman->region->name ?? 'Sample Region',
-                        $salesman->channel->name ?? 'Sample Channel',
-                        $supplierCategory['supplier'],
-                        $supplierCategory['category'],
-                        '1000.00'
+                        '%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s',
+                        $salesman->classification ?? 'food', // Classification
+                        'Active', // Status
+                        '2025', // Year
+                        '08', // Month
+                        $salesman->region->name ?? 'Sample Region', // Region
+                        $salesman->channel->name ?? 'Sample Channel', // Channel
+                        $supplierCategory['supplier'], // Supplier
+                        $supplierCategory['category'], // Category
+                        '', // RouteCode (empty)
+                        $salesman->salesman_code ?? 'SAL' . str_pad($salesman->id, 4, '0', STR_PAD_LEFT), // Salesman Code
+                        $salesman->employee_code ?? '', // Employee Code
+                        $salesman->name, // Salesmen Name
+                        '1000.00' // Amount
                     );
                 }
             }

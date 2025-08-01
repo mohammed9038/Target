@@ -48,6 +48,13 @@ class ChannelController extends Controller
     public function destroy(Channel $channel)
     {
         try {
+            // Check if channel has any sales targets
+            $targetsCount = \App\Models\SalesTarget::where('channel_id', $channel->id)->count();
+            if ($targetsCount > 0) {
+                return redirect()->route('channels.index')
+                    ->with('error', "Cannot delete channel '{$channel->name}'. This channel has {$targetsCount} sales target(s) assigned. Please reassign or delete the targets first.");
+            }
+
             // Check if channel has any salesmen
             if ($channel->salesmen()->exists()) {
                 return redirect()->route('channels.index')

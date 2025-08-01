@@ -50,6 +50,13 @@ class CategoryController extends Controller
 
     public function destroy(Category $category)
     {
+        // Check if category has any sales targets
+        $targetsCount = \App\Models\SalesTarget::where('category_id', $category->id)->count();
+        
+        if ($targetsCount > 0) {
+            return redirect()->route('categories.index')->with('error', "Cannot delete category '{$category->name}'. This category has {$targetsCount} sales target(s) assigned. Please reassign or delete the targets first.");
+        }
+
         $category->delete();
         return redirect()->route('categories.index')->with('success', 'Category deleted successfully.');
     }

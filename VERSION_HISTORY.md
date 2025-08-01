@@ -2,7 +2,39 @@
 
 ## 📋 **Version Control & Deployment Log**
 
-### 🔧 **v1.6-matrix-data-fix (Latest)** - August 1, 2025
+### 🔐 **v1.7-login-fix (Latest)** - August 1, 2025
+**🔑 User Authentication Fix**
+
+**Issues Fixed:**
+- ✅ **Login failing with "credentials do not match our records"**
+  - Database seeder was failing due to unique constraint violations
+  - Admin and manager users were not being created properly
+  - Multiple failed login attempts in application logs
+
+**Seeder Improvements:**
+- Changed all `create()` to `updateOrCreate()` for all database entities
+- Handles duplicate data gracefully without constraint errors
+- Ensures consistent user creation across multiple seeder runs
+- Proper password hashing for authentication
+
+**Database Entities Fixed:**
+- Regions, Channels, Suppliers, Categories (master data)
+- Salesmen (user assignments)
+- Users (admin/manager authentication)
+- ActiveMonthYear (period management)
+
+**Verification:**
+- Added debug route to verify user creation
+- Confirmed both admin and manager users exist in database
+- Tested authentication credentials work properly
+
+**Files Changed:**
+- `database/seeders/DatabaseSeeder.php` (seeder optimization)
+- `routes/web.php` (debug route for user verification)
+
+---
+
+### 🔧 **v1.6-matrix-data-fix** - August 1, 2025
 **🗂️ Matrix Data Display Fix**
 
 **Issues Fixed:**

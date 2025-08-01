@@ -27,13 +27,37 @@ class TargetsExport implements FromQuery, WithHeadings, WithMapping, ShouldAutoS
             'region', 'channel', 'salesman', 'supplier', 'category'
         ]);
 
-        // Apply scope
+        // Apply scope for non-admin users
         if ($this->scope) {
-            if (isset($this->scope['region_id'])) {
-                $query->where('region_id', $this->scope['region_id']);
+            // Apply region scope
+            if (!empty($this->scope['region_ids'])) {
+                $regionIds = $this->scope['region_ids'];
+                $query->whereHas('salesman', function($q) use ($regionIds) {
+                    $q->whereIn('region_id', $regionIds);
+                });
             }
-            if (isset($this->scope['channel_id'])) {
-                $query->where('channel_id', $this->scope['channel_id']);
+            
+            // Apply channel scope
+            if (!empty($this->scope['channel_ids'])) {
+                $channelIds = $this->scope['channel_ids'];
+                $query->whereHas('salesman', function($q) use ($channelIds) {
+                    $q->whereIn('channel_id', $channelIds);
+                });
+            }
+            
+            // Apply classification scope using many-to-many
+            if (!empty($this->scope['classifications'])) {
+                $classifications = $this->scope['classifications'];
+                $query->whereHas('salesman', function($q) use ($classifications) {
+                    $q->whereHas('classifications', function($subQ) use ($classifications) {
+                        $subQ->whereIn('classification', $classifications);
+                    });
+                });
+                
+                // Also filter by supplier classification
+                $query->whereHas('supplier', function($q) use ($classifications) {
+                    $q->whereIn('classification', $classifications);
+                });
             }
         }
 
@@ -64,6 +88,19 @@ class TargetsExport implements FromQuery, WithHeadings, WithMapping, ShouldAutoS
 
         if (isset($this->filters['employee_code'])) {
             $query->byEmployeeCode($this->filters['employee_code']);
+        }
+
+        if (isset($this->filters['classification'])) {
+            $classification = $this->filters['classification'];
+            $query->whereHas('salesman', function($q) use ($classification) {
+                $q->whereHas('classifications', function($subQ) use ($classification) {
+                    $subQ->where('classification', $classification);
+                });
+            });
+        }
+
+        if (isset($this->filters['salesman_id'])) {
+            $query->where('salesman_id', $this->filters['salesman_id']);
         }
 
         return $query->orderBy('year', 'desc')

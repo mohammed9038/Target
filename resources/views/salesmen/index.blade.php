@@ -133,18 +133,21 @@
                                 @endif
                             </td>
                             <td>
-                                @if($salesman->classification === 'food')
-                                    <span class="badge bg-success-subtle text-success px-2">
-                                        <i class="bi bi-cup-hot me-1"></i>{{ __('Food') }}
-                                    </span>
-                                @elseif($salesman->classification === 'non_food')
-                                    <span class="badge bg-info-subtle text-info px-2">
-                                        <i class="bi bi-box me-1"></i>{{ __('Non-Food') }}
-                                    </span>
-                                @elseif($salesman->classification === 'both')
-                                    <span class="badge bg-warning-subtle text-warning px-2">
-                                        <i class="bi bi-collection me-1"></i>{{ __('Both') }}
-                                    </span>
+                                @php
+                                    $classifications = $salesman->getClassificationListAttribute();
+                                @endphp
+                                @if(!empty($classifications))
+                                    @foreach($classifications as $classification)
+                                        @if($classification === 'food')
+                                            <span class="badge bg-success-subtle text-success px-2 me-1">
+                                                <i class="bi bi-cup-hot me-1"></i>{{ __('Food') }}
+                                            </span>
+                                        @elseif($classification === 'non_food')
+                                            <span class="badge bg-info-subtle text-info px-2 me-1">
+                                                <i class="bi bi-box me-1"></i>{{ __('Non-Food') }}
+                                            </span>
+                                        @endif
+                                    @endforeach
                                 @else
                                     <span class="badge bg-secondary-subtle text-secondary px-2">
                                         <i class="bi bi-question-circle me-1"></i>{{ __('Unknown') }}

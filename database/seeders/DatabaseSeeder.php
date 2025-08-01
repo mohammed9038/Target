@@ -67,6 +67,8 @@ class DatabaseSeeder extends Seeder
             ]
         );
 
+        // Remove Universal Supplier C since suppliers should only be food or non_food
+
         // Create categories
         Category::updateOrCreate(
             ['category_code' => 'CAT001'],
@@ -92,28 +94,61 @@ class DatabaseSeeder extends Seeder
             ]
         );
 
-        // Create salesmen
-        Salesman::updateOrCreate(
+        // Removed categories for Universal Supplier C since it was removed
+
+        // Create salesmen (without classification field - will use pivot table)
+        $salesman1 = Salesman::updateOrCreate(
             ['salesman_code' => 'SAL001'],
             [
                 'employee_code' => 'EMP001',
                 'name' => 'John Doe',
                 'region_id' => $region1->id,
                 'channel_id' => $channel1->id,
-                'classification' => 'both',
             ]
         );
 
-        Salesman::updateOrCreate(
+        $salesman2 = Salesman::updateOrCreate(
             ['salesman_code' => 'SAL002'],
             [
                 'employee_code' => 'EMP002',
                 'name' => 'Jane Smith',
                 'region_id' => $region2->id,
                 'channel_id' => $channel2->id,
-                'classification' => 'food',
             ]
         );
+
+        $salesman3 = Salesman::updateOrCreate(
+            ['salesman_code' => 'SAL003'],
+            [
+                'employee_code' => 'EMP003',
+                'name' => 'ahmed',
+                'region_id' => $region2->id,
+                'channel_id' => $channel2->id,
+            ]
+        );
+
+        // Assign classifications to salesmen (many-to-many)
+        // John Doe can handle both food and non-food
+        \App\Models\SalesmanClassification::updateOrCreate([
+            'salesman_id' => $salesman1->id,
+            'classification' => 'food'
+        ]);
+        \App\Models\SalesmanClassification::updateOrCreate([
+            'salesman_id' => $salesman1->id,
+            'classification' => 'non_food'
+        ]);
+
+        // Jane Smith handles only food
+        \App\Models\SalesmanClassification::updateOrCreate([
+            'salesman_id' => $salesman2->id,
+            'classification' => 'food'
+        ]);
+
+        // ahmed handles only non-food
+        \App\Models\SalesmanClassification::updateOrCreate([
+            'salesman_id' => $salesman3->id,
+            'classification' => 'non_food'
+        ]);
 
         // Create active periods
         ActiveMonthYear::updateOrCreate(
@@ -145,13 +180,12 @@ class DatabaseSeeder extends Seeder
             ]
         );
 
-        // Create manager user with food classification
+        // Create manager user (no classification field - will use pivot table)
         $manager = User::updateOrCreate(
             ['username' => 'manager'],
             [
                 'password' => Hash::make('password'),
                 'role' => 'manager',
-                'classification' => 'food',
             ]
         );
 
@@ -161,13 +195,18 @@ class DatabaseSeeder extends Seeder
         $manager->regions()->attach($region1->id);
         $manager->channels()->attach($channel1->id);
 
+        // Assign food classification to manager
+        \App\Models\UserClassification::updateOrCreate([
+            'user_id' => $manager->id,
+            'classification' => 'food'
+        ]);
+
         // Create manager user for non-food classification
         $manager2 = User::updateOrCreate(
             ['username' => 'manager2'],
             [
                 'password' => Hash::make('password'),
                 'role' => 'manager',
-                'classification' => 'non_food',
             ]
         );
 
@@ -177,13 +216,18 @@ class DatabaseSeeder extends Seeder
         $manager2->regions()->attach($region2->id);
         $manager2->channels()->attach($channel2->id);
 
-        // Create a limited manager with access to both classifications
+        // Assign non-food classification to manager2
+        \App\Models\UserClassification::updateOrCreate([
+            'user_id' => $manager2->id,
+            'classification' => 'non_food'
+        ]);
+
+        // Create a manager with access to both classifications
         $manager3 = User::updateOrCreate(
             ['username' => 'manager3'],
             [
                 'password' => Hash::make('password'),
                 'role' => 'manager',
-                'classification' => 'both',
             ]
         );
 
@@ -192,5 +236,15 @@ class DatabaseSeeder extends Seeder
         $manager3->channels()->detach();
         $manager3->regions()->attach([$region1->id, $region2->id]);
         $manager3->channels()->attach([$channel1->id, $channel2->id]);
+
+        // Assign both classifications to manager3
+        \App\Models\UserClassification::updateOrCreate([
+            'user_id' => $manager3->id,
+            'classification' => 'food'
+        ]);
+        \App\Models\UserClassification::updateOrCreate([
+            'user_id' => $manager3->id,
+            'classification' => 'non_food'
+        ]);
     }
 } 

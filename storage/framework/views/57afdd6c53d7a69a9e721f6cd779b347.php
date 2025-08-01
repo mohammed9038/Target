@@ -149,32 +149,8 @@
                     <i class="bi bi-collection me-1"></i><?php echo e(__('Classification')); ?>
 
                 </label>
-                <select class="form-select form-select-sm" id="classificationFilter" <?php echo e(auth()->user()->isManager() && auth()->user()->classification && auth()->user()->classification !== 'both' ? 'disabled' : ''); ?>>
-                    <?php if(auth()->user()->isAdmin()): ?>
-                        <option value=""><?php echo e(__('All Classifications')); ?></option>
-                        <option value="food"><?php echo e(__('Food')); ?></option>
-                        <option value="non_food"><?php echo e(__('Non-Food')); ?></option>
-                        <option value="both"><?php echo e(__('Both')); ?></option>
-                    <?php else: ?>
-                        <?php if(auth()->user()->classification): ?>
-                            <?php if(auth()->user()->classification === 'both'): ?>
-                                <option value=""><?php echo e(__('All Classifications')); ?></option>
-                                <option value="food"><?php echo e(__('Food')); ?></option>
-                                <option value="non_food"><?php echo e(__('Non-Food')); ?></option>
-                                <option value="both" selected><?php echo e(__('Both')); ?></option>
-                            <?php else: ?>
-                                <option value="<?php echo e(auth()->user()->classification); ?>" selected>
-                                    <?php echo e(auth()->user()->classification === 'food' ? __('Food') : __('Non-Food')); ?>
-
-                                </option>
-                            <?php endif; ?>
-                        <?php else: ?>
-                            <option value=""><?php echo e(__('All Classifications')); ?></option>
-                            <option value="food"><?php echo e(__('Food')); ?></option>
-                            <option value="non_food"><?php echo e(__('Non-Food')); ?></option>
-                            <option value="both"><?php echo e(__('Both')); ?></option>
-                        <?php endif; ?>
-                    <?php endif; ?>
+                <select class="form-select form-select-sm" id="classificationFilter">
+                    <!-- Will be populated dynamically based on user permissions -->
                 </select>
             </div>
             
@@ -307,10 +283,96 @@
 </div>
 
 <script>
+let userInfo = null;
+
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('🎯 REPORTS PAGE LOADED');
+    loadUserInfo();
     loadFilters();
     loadSummary();
 });
+
+async function loadUserInfo() {
+    const fetchOptions = {
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        },
+        credentials: 'same-origin'
+    };
+
+    try {
+        console.log('📡 Fetching user info from /api/v1/user/info');
+        const response = await fetch('/api/v1/user/info', fetchOptions);
+        console.log('📡 User info response status:', response.status);
+        
+        if (response.ok) {
+            const result = await response.json();
+            console.log('👤 User info received:', result);
+            userInfo = result.data;
+            setUserClassificationFilter();
+        } else {
+            console.error('❌ User info failed:', response.status, await response.text());
+        }
+    } catch (error) {
+        console.error('❌ Error loading user info:', error);
+    }
+}
+
+function setUserClassificationFilter() {
+    console.log('🎯 Setting classification filter, userInfo:', userInfo);
+    const classificationSelect = document.getElementById('classificationFilter');
+    classificationSelect.innerHTML = ''; // Clear existing options
+    
+    if (userInfo.is_admin) {
+        // Admin sees all options
+        const allOption = document.createElement('option');
+        allOption.value = '';
+        allOption.textContent = 'All Classifications';
+        classificationSelect.appendChild(allOption);
+        
+        const foodOption = document.createElement('option');
+        foodOption.value = 'food';
+        foodOption.textContent = 'Food';
+        classificationSelect.appendChild(foodOption);
+        
+        const nonFoodOption = document.createElement('option');
+        nonFoodOption.value = 'non_food';
+        nonFoodOption.textContent = 'Non-Food';
+        classificationSelect.appendChild(nonFoodOption);
+    } else {
+        // Manager sees based on their assigned classifications
+        if (userInfo.classifications && userInfo.classifications.length > 0) {
+            if (userInfo.classifications.length > 1) {
+                // Multiple classifications - show "All" option
+                const allOption = document.createElement('option');
+                allOption.value = '';
+                allOption.textContent = 'All Classifications';
+                classificationSelect.appendChild(allOption);
+            }
+            
+            userInfo.classifications.forEach(classification => {
+                const option = document.createElement('option');
+                option.value = classification;
+                option.textContent = classification === 'food' ? 'Food' : 'Non-Food';
+                if (userInfo.classifications.length === 1) {
+                    option.selected = true;
+                    classificationSelect.disabled = true;
+                }
+                classificationSelect.appendChild(option);
+            });
+        } else {
+            // No classifications assigned
+            const noOption = document.createElement('option');
+            noOption.value = '';
+            noOption.textContent = 'No Classifications';
+            noOption.disabled = true;
+            classificationSelect.appendChild(noOption);
+            classificationSelect.disabled = true;
+        }
+    }
+}
 
 async function loadFilters() {
     const fetchOptions = {
@@ -324,68 +386,98 @@ async function loadFilters() {
 
     try {
         // Load regions
-        const regionsResponse = await fetch('/api/deps/regions', fetchOptions);
+        console.log('📡 Loading regions from /api/v1/deps/regions');
+        const regionsResponse = await fetch('/api/v1/deps/regions', fetchOptions);
+        console.log('📡 Regions response status:', regionsResponse.status);
+        
         if (regionsResponse.ok) {
             const regions = await regionsResponse.json();
+            console.log('🏘️ Regions loaded:', regions);
             const regionSelect = document.getElementById('regionFilter');
-            regions.forEach(region => {
+            regions.data?.forEach(region => {
                 const option = document.createElement('option');
                 option.value = region.id;
                 option.textContent = region.name;
                 regionSelect.appendChild(option);
             });
+        } else {
+            console.error('❌ Regions failed:', regionsResponse.status, await regionsResponse.text());
         }
 
         // Load channels
-        const channelsResponse = await fetch('/api/deps/channels', fetchOptions);
+        console.log('📡 Loading channels from /api/v1/deps/channels');
+        const channelsResponse = await fetch('/api/v1/deps/channels', fetchOptions);
+        console.log('📡 Channels response status:', channelsResponse.status);
+        
         if (channelsResponse.ok) {
             const channels = await channelsResponse.json();
+            console.log('🏢 Channels loaded:', channels);
             const channelSelect = document.getElementById('channelFilter');
-            channels.forEach(channel => {
+            channels.data?.forEach(channel => {
                 const option = document.createElement('option');
                 option.value = channel.id;
                 option.textContent = channel.name;
                 channelSelect.appendChild(option);
             });
+        } else {
+            console.error('❌ Channels failed:', channelsResponse.status, await channelsResponse.text());
         }
 
         // Load suppliers
-        const suppliersResponse = await fetch('/api/deps/suppliers', fetchOptions);
+        console.log('📡 Loading suppliers from /api/v1/deps/suppliers');
+        const suppliersResponse = await fetch('/api/v1/deps/suppliers', fetchOptions);
+        console.log('📡 Suppliers response status:', suppliersResponse.status);
+        
         if (suppliersResponse.ok) {
             const suppliers = await suppliersResponse.json();
+            console.log('🏪 Suppliers loaded:', suppliers);
             const supplierSelect = document.getElementById('supplierFilter');
-            suppliers.forEach(supplier => {
+            suppliers.data?.forEach(supplier => {
                 const option = document.createElement('option');
                 option.value = supplier.id;
                 option.textContent = supplier.name;
                 supplierSelect.appendChild(option);
             });
+        } else {
+            console.error('❌ Suppliers failed:', suppliersResponse.status, await suppliersResponse.text());
         }
 
         // Load categories
-        const categoriesResponse = await fetch('/api/deps/categories', fetchOptions);
+        console.log('📡 Loading categories from /api/v1/deps/categories');
+        const categoriesResponse = await fetch('/api/v1/deps/categories', fetchOptions);
+        console.log('📡 Categories response status:', categoriesResponse.status);
+        
         if (categoriesResponse.ok) {
             const categories = await categoriesResponse.json();
+            console.log('📦 Categories loaded:', categories);
             const categorySelect = document.getElementById('categoryFilter');
-            categories.forEach(category => {
+            categories.data?.forEach(category => {
                 const option = document.createElement('option');
                 option.value = category.id;
                 option.textContent = category.name;
                 categorySelect.appendChild(option);
             });
+        } else {
+            console.error('❌ Categories failed:', categoriesResponse.status, await categoriesResponse.text());
         }
 
         // Load salesmen
-        const salesmenResponse = await fetch('/api/deps/salesmen', fetchOptions);
+        console.log('📡 Loading salesmen from /api/v1/deps/salesmen');
+        const salesmenResponse = await fetch('/api/v1/deps/salesmen', fetchOptions);
+        console.log('📡 Salesmen response status:', salesmenResponse.status);
+        
         if (salesmenResponse.ok) {
             const salesmen = await salesmenResponse.json();
+            console.log('👥 Salesmen loaded:', salesmen);
             const salesmanSelect = document.getElementById('salesmanFilter');
-            salesmen.forEach(salesman => {
+            salesmen.data?.forEach(salesman => {
                 const option = document.createElement('option');
                 option.value = salesman.id;
                 option.textContent = `${salesman.name} (${salesman.salesman_code})`;
                 salesmanSelect.appendChild(option);
             });
+        } else {
+            console.error('❌ Salesmen failed:', salesmenResponse.status, await salesmenResponse.text());
         }
     } catch (error) {
         console.error('Error loading filters:', error);
@@ -403,7 +495,7 @@ async function loadSummary() {
     };
 
     try {
-        const response = await fetch('/api/reports/summary', fetchOptions);
+        const response = await fetch('/api/v1/reports/summary', fetchOptions);
         if (response.ok) {
             const data = await response.json();
             document.getElementById('totalTargets').textContent = `$${(data.total_amount || 0).toLocaleString()}`;
@@ -428,6 +520,7 @@ async function loadSummary() {
 }
 
 async function loadReports() {
+    console.log('📊 Loading reports...');
     const reportsContent = document.getElementById('reportsContent');
     
     // Get all filter values
@@ -442,12 +535,16 @@ async function loadReports() {
         salesman_id: document.getElementById('salesmanFilter').value,
     };
     
+    console.log('🎯 Raw filters:', filters);
+    
     // Remove empty filters
     Object.keys(filters).forEach(key => {
         if (!filters[key]) {
             delete filters[key];
         }
     });
+    
+    console.log('🎯 Clean filters:', filters);
     
     // Show loading state
     reportsContent.innerHTML = `
@@ -464,7 +561,10 @@ async function loadReports() {
         const queryParams = new URLSearchParams(filters);
         
         // Fetch targets data from API
-        const response = await fetch(`/api/targets?${queryParams}`, {
+        const apiUrl = `/api/v1/targets?${queryParams}`;
+        console.log('📡 Fetching targets from:', apiUrl);
+        
+        const response = await fetch(apiUrl, {
             headers: {
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
                 'Content-Type': 'application/json',
@@ -473,12 +573,18 @@ async function loadReports() {
             credentials: 'same-origin'
         });
         
+        console.log('📡 Targets response status:', response.status);
+        
         if (!response.ok) {
+            const errorText = await response.text();
+            console.error('❌ Targets API error:', response.status, errorText);
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
         
         const result = await response.json();
+        console.log('📊 Targets result:', result);
         const targets = result.data.data || []; // Handle pagination
+        console.log('📊 Targets array:', targets);
         
         // Build active filters display
         const activeFilters = Object.entries(filters)
@@ -690,7 +796,7 @@ function exportReport() {
     const queryParams = new URLSearchParams(filters);
     
     // Open the export URL in a new window
-    window.open(`/api/reports/export.xlsx?${queryParams}`, '_blank');
+    window.open(`/api/v1/reports/export.xlsx?${queryParams}`, '_blank');
 }
 
 function clearFilters() {
@@ -698,26 +804,29 @@ function clearFilters() {
     document.getElementById('yearFilter').value = '<?php echo e(date("Y")); ?>';
     document.getElementById('monthFilter').value = '<?php echo e(date("n")); ?>';
     
-    <?php if(auth()->user()->isAdmin()): ?>
-        document.getElementById('regionFilter').value = '';
-        document.getElementById('channelFilter').value = '';
-        document.getElementById('classificationFilter').value = '';
-    <?php else: ?>
-        // Managers keep their assigned values
-        <?php if(auth()->user()->isManager()): ?>
-            <?php if(auth()->user()->regions->count() == 1): ?>
-                document.getElementById('regionFilter').value = '<?php echo e(auth()->user()->regions->first()->id); ?>';
-            <?php endif; ?>
-            <?php if(auth()->user()->channels->count() == 1): ?>
-                document.getElementById('channelFilter').value = '<?php echo e(auth()->user()->channels->first()->id); ?>';
-            <?php endif; ?>
-        <?php endif; ?>
-        <?php if(auth()->user()->classification && auth()->user()->classification !== 'both'): ?>
-            document.getElementById('classificationFilter').value = '<?php echo e(auth()->user()->classification); ?>';
-        <?php else: ?>
+    // Reset filters based on user permissions
+    if (userInfo) {
+        if (userInfo.is_admin) {
+            document.getElementById('regionFilter').value = '';
+            document.getElementById('channelFilter').value = '';
             document.getElementById('classificationFilter').value = '';
-        <?php endif; ?>
-    <?php endif; ?>
+        } else {
+            // Managers keep their assigned values or reset appropriately
+            const regionFilter = document.getElementById('regionFilter');
+            const channelFilter = document.getElementById('channelFilter');
+            const classificationFilter = document.getElementById('classificationFilter');
+            
+            if (!regionFilter.disabled) {
+                regionFilter.value = '';
+            }
+            if (!channelFilter.disabled) {
+                channelFilter.value = '';
+            }
+            if (!classificationFilter.disabled) {
+                classificationFilter.value = '';
+            }
+        }
+    }
     
     document.getElementById('supplierFilter').value = '';
     document.getElementById('categoryFilter').value = '';

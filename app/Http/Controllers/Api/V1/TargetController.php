@@ -22,27 +22,33 @@ class TargetController extends Controller
         ]);
 
         // Apply user scope
-        if ($user->isManager()) {
-            $regionIds = $user->getRegionIds();
-            $channelIds = $user->getChannelIds();
+        if (!$user->isAdmin()) {
+            $userScope = $user->scope();
             
-            if (!empty($regionIds)) {
-                $query->whereIn('region_id', $regionIds);
-            }
-            if (!empty($channelIds)) {
-                $query->whereIn('channel_id', $channelIds);
-            }
-                  
-            // Apply classification filter if specified
-            if ($user->classification && $user->classification !== 'both') {
-                $query->whereHas('salesman', function($q) use ($user) {
-                    $q->where('classification', $user->classification);
-                });
+            if ($userScope) {
+                // Apply region scope (direct on sales_targets table)
+                if (!empty($userScope['region_ids'])) {
+                    $query->whereIn('region_id', $userScope['region_ids']);
+                }
                 
-                // Also filter by supplier classification
-                $query->whereHas('supplier', function($q) use ($user) {
-                    $q->where('classification', $user->classification);
-                });
+                // Apply channel scope (direct on sales_targets table)
+                if (!empty($userScope['channel_ids'])) {
+                    $query->whereIn('channel_id', $userScope['channel_ids']);
+                }
+                
+                // Apply classification scope using many-to-many
+                if (!empty($userScope['classifications'])) {
+                    $query->whereHas('salesman', function($q) use ($userScope) {
+                        $q->whereHas('classifications', function($subQ) use ($userScope) {
+                            $subQ->whereIn('classification', $userScope['classifications']);
+                        });
+                    });
+                    
+                    // Also filter by supplier classification
+                    $query->whereHas('supplier', function($q) use ($userScope) {
+                        $q->whereIn('classification', $userScope['classifications']);
+                    });
+                }
             }
         }
 
@@ -76,11 +82,11 @@ class TargetController extends Controller
         }
 
         if ($request->filled('classification')) {
-            if ($request->classification !== 'both') {
-                $query->whereHas('salesman', function($q) use ($request) {
-                    $q->where('classification', $request->classification);
+            $query->whereHas('salesman', function($q) use ($request) {
+                $q->whereHas('classifications', function($subQ) use ($request) {
+                    $subQ->where('classification', $request->classification);
                 });
-            }
+            });
         }
 
         if ($request->filled('salesman_id')) {
@@ -402,22 +408,47 @@ class TargetController extends Controller
         ]);
 
         $user = Auth::user();
-
-        // Apply user scope restrictions for non-admin users
-        $userScope = null;
-        if (!$user->isAdmin()) {
-            $userScope = $user->scope();
-        }
-
-        // Check period status
+        
+        // Check period status first
         $period = ActiveMonthYear::where('year', $request->year)
                                 ->where('month', $request->month)
                                 ->first();
         $isPeriodOpen = $period ? $period->is_open : false;
+        
+        // Apply user scope restrictions for non-admin users
+        $userScope = null;
+        if (!$user->isAdmin()) {
+            try {
+                $userScope = $user->scope();
+                
+                // If user has no scope permissions, return empty data instead of error
+                if (!$userScope || (
+                    empty($userScope['region_ids']) && 
+                    empty($userScope['channel_ids']) && 
+                    empty($userScope['classifications'])
+                )) {
+                    return response()->json([
+                        'data' => [
+                            'salesmen' => [],
+                            'suppliers' => [],
+                            'targets' => [],
+                            'is_period_open' => $isPeriodOpen
+                        ]
+                    ]);
+                }
+            } catch (\Exception $e) {
+                // Log the error for debugging
+                \Log::error('Error getting user scope for user ' . $user->id . ': ' . $e->getMessage());
+                
+                // Return error response with details
+                return response()->json([
+                    'message' => 'User permission error: ' . $e->getMessage()
+                ], 500);
+            }
+        }
 
         // 1. Get Salesmen with all filters applied
-        $salesmenQuery = \App\Models\Salesman::with(['region', 'channel'])
-            ->select('id as salesman_id', 'salesman_code', 'name as salesman_name', 'classification as salesman_classification', 'region_id', 'channel_id');
+        $salesmenQuery = \App\Models\Salesman::with(['region', 'channel', 'classifications']);
 
         if ($request->filled('region_id')) {
             $salesmenQuery->where('region_id', $request->region_id);
@@ -428,8 +459,10 @@ class TargetController extends Controller
         if ($request->filled('salesman_id')) {
             $salesmenQuery->where('id', $request->salesman_id);
         }
-        if ($request->filled('classification') && $request->classification !== 'both') {
-            $salesmenQuery->where('classification', $request->classification);
+        if ($request->filled('classification')) {
+            $salesmenQuery->whereHas('classifications', function($q) use ($request) {
+                $q->where('classification', $request->classification);
+            });
         }
 
         // Apply user scope filters for non-admin users
@@ -444,11 +477,10 @@ class TargetController extends Controller
                 $salesmenQuery->whereIn('channel_id', $userScope['channel_ids']);
             }
             
-            // Filter by user's assigned classification
-            if (isset($userScope['classification']) && $userScope['classification'] !== 'both') {
-                $salesmenQuery->where(function($q) use ($userScope) {
-                    $q->where('classification', $userScope['classification'])
-                      ->orWhere('classification', 'both');
+            // Filter by user's assigned classifications
+            if (!empty($userScope['classifications'])) {
+                $salesmenQuery->whereHas('classifications', function($q) use ($userScope) {
+                    $q->whereIn('classification', $userScope['classifications']);
                 });
             }
         }
@@ -470,15 +502,15 @@ class TargetController extends Controller
         if ($request->filled('category_id')) {
             $suppliersQuery->where('categories.id', $request->category_id);
         }
-         if ($request->filled('classification') && $request->classification !== 'both') {
+         if ($request->filled('classification')) {
             $suppliersQuery->where('suppliers.classification', $request->classification);
         }
 
         // Apply user scope filters to suppliers for non-admin users
         if ($userScope) {
-            // Filter by user's assigned classification
-            if (isset($userScope['classification']) && $userScope['classification'] !== 'both') {
-                $suppliersQuery->where('suppliers.classification', $userScope['classification']);
+            // Filter by user's assigned classifications
+            if (!empty($userScope['classifications'])) {
+                $suppliersQuery->whereIn('suppliers.classification', $userScope['classifications']);
             }
         }
 
@@ -496,7 +528,7 @@ class TargetController extends Controller
 
         // Apply user scope filters to targets for non-admin users
         if ($userScope) {
-            // Filter targets by user's assigned salesmen (regions/channels/classification)
+            // Filter targets by user's assigned salesmen (regions/channels/classifications)
             $targetsQuery->whereHas('salesman', function($q) use ($userScope) {
                 if (!empty($userScope['region_ids'])) {
                     $q->whereIn('region_id', $userScope['region_ids']);
@@ -504,32 +536,35 @@ class TargetController extends Controller
                 if (!empty($userScope['channel_ids'])) {
                     $q->whereIn('channel_id', $userScope['channel_ids']);
                 }
-                if (isset($userScope['classification']) && $userScope['classification'] !== 'both') {
-                    $q->where(function($subQ) use ($userScope) {
-                        $subQ->where('classification', $userScope['classification'])
-                             ->orWhere('classification', 'both');
+                if (!empty($userScope['classifications'])) {
+                    $q->whereHas('classifications', function($subQ) use ($userScope) {
+                        $subQ->whereIn('classification', $userScope['classifications']);
                     });
                 }
             });
 
-            // Filter targets by user's assigned supplier classification
-            if (isset($userScope['classification']) && $userScope['classification'] !== 'both') {
+            // Filter targets by user's assigned supplier classifications
+            if (!empty($userScope['classifications'])) {
                 $targetsQuery->whereHas('supplier', function($q) use ($userScope) {
-                    $q->where('classification', $userScope['classification']);
+                    $q->whereIn('classification', $userScope['classifications']);
                 });
             }
         }
 
+        $salesmen = $salesmenQuery->get();
+
         return response()->json([
             'data' => [
-                'salesmen' => $salesmenQuery->get()->map(function($s){
+                'salesmen' => $salesmen->map(function($s){
+                    $classifications = $s->classifications ? $s->classifications->pluck('classification')->toArray() : [];
+                    
                     return [
-                        'salesman_id' => $s->salesman_id,
+                        'salesman_id' => $s->id,
                         'salesman_code' => $s->salesman_code,
-                        'salesman_name' => $s->salesman_name,
-                        'salesman_classification' => $s->salesman_classification,
-                        'region_name' => $s->region->name ?? 'N/A',
-                        'channel_name' => $s->channel->name ?? 'N/A'
+                        'salesman_name' => $s->name,
+                        'salesman_classifications' => $classifications,
+                        'region_name' => $s->region ? $s->region->name : 'N/A',
+                        'channel_name' => $s->channel ? $s->channel->name : 'N/A'
                     ];
                 }),
                 'suppliers' => $suppliersQuery->get(),
@@ -648,6 +683,12 @@ class TargetController extends Controller
 
         $user = Auth::user();
         
+        // Apply user scope restrictions for non-admin users
+        $userScope = null;
+        if (!$user->isAdmin()) {
+            $userScope = $user->scope();
+        }
+        
         // Start with salesmen query to get filtered salesmen
         $salesmenQuery = \App\Models\Salesman::query();
         
@@ -660,8 +701,30 @@ class TargetController extends Controller
         if ($request->filled('salesman_id')) {
             $salesmenQuery->where('id', $request->salesman_id);
         }
-        if ($request->filled('classification') && $request->classification !== 'both') {
-            $salesmenQuery->where('classification', $request->classification);
+        if ($request->filled('classification')) {
+            $salesmenQuery->whereHas('classifications', function($q) use ($request) {
+                $q->where('classification', $request->classification);
+            });
+        }
+        
+        // Apply user scope filters for non-admin users
+        if ($userScope) {
+            // Filter by user's assigned regions
+            if (!empty($userScope['region_ids'])) {
+                $salesmenQuery->whereIn('region_id', $userScope['region_ids']);
+            }
+            
+            // Filter by user's assigned channels
+            if (!empty($userScope['channel_ids'])) {
+                $salesmenQuery->whereIn('channel_id', $userScope['channel_ids']);
+            }
+            
+            // Filter by user's assigned classifications
+            if (!empty($userScope['classifications'])) {
+                $salesmenQuery->whereHas('classifications', function($q) use ($userScope) {
+                    $q->whereIn('classification', $userScope['classifications']);
+                });
+            }
         }
         
         // Get filtered salesman IDs
@@ -680,15 +743,13 @@ class TargetController extends Controller
         if ($request->filled('category_id')) {
             $query->where('category_id', $request->category_id);
         }
-
-        // Apply user scope for managers
-        if ($user->isManager()) {
-            $query->where('region_id', $user->region_id)
-                  ->where('channel_id', $user->channel_id);
-                  
-            if ($user->classification && $user->classification !== 'both') {
-                $query->whereHas('salesman', function($q) use ($user) {
-                    $q->where('classification', $user->classification);
+        
+        // Apply user scope filters to targets for non-admin users
+        if ($userScope) {
+            // Filter targets by user's assigned suppliers (classifications)
+            if (!empty($userScope['classifications'])) {
+                $query->whereHas('supplier', function($q) use ($userScope) {
+                    $q->whereIn('classification', $userScope['classifications']);
                 });
             }
         }
@@ -703,8 +764,11 @@ class TargetController extends Controller
         ];
 
         foreach ($targets as $target) {
+            // Get supplier classification for this target
+            $supplierClassification = $target->supplier->classification ?? '';
+            
             $csvData[] = [
-                $target->classification ?? $target->salesman->classification ?? '',
+                $supplierClassification,
                 'Active',
                 $target->year,
                 str_pad($target->month, 2, '0', STR_PAD_LEFT), // Format as 01, 02, etc.
@@ -741,9 +805,12 @@ class TargetController extends Controller
 
     public function upload(Request $request)
     {
-        // Check if user has permission to upload
-        if (!auth()->user()->isAdmin()) {
-            return response()->json(['message' => 'Unauthorized. Only administrators can upload targets.'], 403);
+        $user = auth()->user();
+        
+        // Get user scope for permission checks
+        $userScope = null;
+        if (!$user->isAdmin()) {
+            $userScope = $user->scope();
         }
 
         $request->validate([
@@ -886,11 +953,11 @@ class TargetController extends Controller
                     $expectedVariations[$field] = $headerMap[$field];
                 }
                 
-                return response()->json([
+                    return response()->json([
                     'message' => "Required column(s) not found in file headers: " . implode(", ", $missingFields),
                     'found_headers' => $headers,
                     'expected_variations' => $expectedVariations
-                ], 400);
+                    ], 400);
             }
 
             // Process each data row
@@ -900,7 +967,7 @@ class TargetController extends Controller
                 if (empty(array_filter($data, function($cell) { return trim($cell) !== ''; }))) {
                     continue;
                 }
-                
+
                 $results['processed']++;
                 
                 try {
@@ -961,12 +1028,14 @@ class TargetController extends Controller
                         continue;
                     }
 
-                    // Find salesman by employee_code (primary method)
-                    $salesman = \App\Models\Salesman::where('employee_code', $employeeCode)->first();
+                    // Find salesman by employee_code (primary method) - load relationships for permission checks
+                    $salesman = \App\Models\Salesman::with(['region', 'channel', 'classifications'])
+                        ->where('employee_code', $employeeCode)->first();
                     
                     // Fallback: try salesman_code if provided and employee_code didn't work
                     if (!$salesman && !empty($salesmanCode)) {
-                        $salesman = \App\Models\Salesman::where('salesman_code', $salesmanCode)->first();
+                        $salesman = \App\Models\Salesman::with(['region', 'channel', 'classifications'])
+                            ->where('salesman_code', $salesmanCode)->first();
                     }
                     
                     if (!$salesman) {
@@ -976,6 +1045,39 @@ class TargetController extends Controller
                         continue;
                     }
 
+                    // Check user permissions for this salesman (if not admin)
+                    if ($userScope) {
+                        // Check region permission
+                        if (!empty($userScope['region_ids']) && !in_array($salesman->region_id, $userScope['region_ids'])) {
+                            $results['errors']++;
+                            $regionName = $salesman->region ? $salesman->region->name : 'Unknown';
+                            $results['error_details'][] = "Row " . ($lineNumber + 1) . ": No permission for salesman's region '{$regionName}' - skipped";
+                            $lineNumber++;
+                            continue;
+                        }
+                        
+                        // Check channel permission
+                        if (!empty($userScope['channel_ids']) && !in_array($salesman->channel_id, $userScope['channel_ids'])) {
+                            $results['errors']++;
+                            $channelName = $salesman->channel ? $salesman->channel->name : 'Unknown';
+                            $results['error_details'][] = "Row " . ($lineNumber + 1) . ": No permission for salesman's channel '{$channelName}' - skipped";
+                            $lineNumber++;
+                            continue;
+                        }
+                        
+                        // Check salesman classification permission
+                        if (!empty($userScope['classifications'])) {
+                            $salesmanClassifications = $salesman->classifications->pluck('classification')->toArray();
+                            $hasCommonClassification = !empty(array_intersect($salesmanClassifications, $userScope['classifications']));
+                            if (!$hasCommonClassification) {
+                                $results['errors']++;
+                                $results['error_details'][] = "Row " . ($lineNumber + 1) . ": No permission for salesman's classifications [" . implode(', ', $salesmanClassifications) . "] - skipped";
+                                $lineNumber++;
+                                continue;
+                            }
+                        }
+                    }
+
                     // Find supplier - skip if not found in master data
                     $supplier = \App\Models\Supplier::where('name', 'LIKE', '%' . $supplierName . '%')->first();
                     if (!$supplier) {
@@ -983,6 +1085,26 @@ class TargetController extends Controller
                         $results['error_details'][] = "Row " . ($lineNumber + 1) . ": Supplier '{$supplierName}' not found in master data - skipped";
                         $lineNumber++;
                         continue;
+                    }
+
+                    // Check user permissions for this supplier (if not admin)
+                    if ($userScope) {
+                        // Check supplier classification permission
+                        if (!empty($userScope['classifications']) && !in_array($supplier->classification, $userScope['classifications'])) {
+                            $results['errors']++;
+                            $results['error_details'][] = "Row " . ($lineNumber + 1) . ": No permission for supplier classification '{$supplier->classification}' - skipped";
+                            $lineNumber++;
+                            continue;
+                        }
+                        
+                        // Additional check: ensure salesman and supplier classifications are compatible
+                        $salesmanClassifications = $salesman->classifications->pluck('classification')->toArray();
+                        if (!in_array($supplier->classification, $salesmanClassifications)) {
+                            $results['errors']++;
+                            $results['error_details'][] = "Row " . ($lineNumber + 1) . ": Salesman classifications [" . implode(', ', $salesmanClassifications) . "] not compatible with supplier classification '{$supplier->classification}' - skipped";
+                            $lineNumber++;
+                            continue;
+                        }
                     }
 
                     // Find category - skip if not found in master data
@@ -1032,7 +1154,7 @@ class TargetController extends Controller
                 $summaryMessage .= ", {$results['errors']} rows skipped due to invalid/non-matching data";
             }
             $results['message'] = $summaryMessage;
-            
+
             return response()->json($results);
 
         } catch (\Exception $e) {
@@ -1044,16 +1166,39 @@ class TargetController extends Controller
 
     public function downloadTemplate(Request $request)
     {
-        // Check if user has permission to download template
-        if (!auth()->user()->isAdmin()) {
-            return response()->json(['message' => 'Unauthorized. Only administrators can download templates.'], 403);
+        $user = auth()->user();
+        
+        // Get user scope for filtering template data
+        $userScope = null;
+        if (!$user->isAdmin()) {
+            $userScope = $user->scope();
         }
 
         try {
-            // Get sample salesmen data from database
-            $salesmen = \App\Models\Salesman::with(['region', 'channel'])
-                ->take(10)
-                ->get();
+            // Get sample salesmen data from database - filtered by user scope
+            $salesmenQuery = \App\Models\Salesman::with(['region', 'channel', 'classifications']);
+            
+            // Apply user scope filters for non-admin users
+            if ($userScope) {
+                // Filter by user's assigned regions
+                if (!empty($userScope['region_ids'])) {
+                    $salesmenQuery->whereIn('region_id', $userScope['region_ids']);
+                }
+                
+                // Filter by user's assigned channels
+                if (!empty($userScope['channel_ids'])) {
+                    $salesmenQuery->whereIn('channel_id', $userScope['channel_ids']);
+                }
+                
+                // Filter by user's assigned classifications
+                if (!empty($userScope['classifications'])) {
+                    $salesmenQuery->whereHas('classifications', function($q) use ($userScope) {
+                        $q->whereIn('classification', $userScope['classifications']);
+                    });
+                }
+            }
+            
+            $salesmen = $salesmenQuery->take(10)->get();
             
             if ($salesmen->isEmpty()) {
                 // Fallback to static sample data if no salesmen in database
@@ -1069,14 +1214,22 @@ class TargetController extends Controller
                 // Create CSV with real data - match export format exactly
                 $csvContent = ['Classification,Status,Year,Month,Region,Channel,Supplier,Category,RouteCode,Salesman Code,Employee Code,Salesmen Name,Amount'];
                 
-                // Get some real suppliers and categories for the template
-                $suppliers = \App\Models\Supplier::with('categories')->take(3)->get();
+                // Get some real suppliers and categories for the template - filtered by user scope
+                $suppliersQuery = \App\Models\Supplier::with('categories');
+                
+                // Apply user scope filters for non-admin users
+                if ($userScope && !empty($userScope['classifications'])) {
+                    $suppliersQuery->whereIn('classification', $userScope['classifications']);
+                }
+                
+                $suppliers = $suppliersQuery->take(3)->get();
                 $sampleSupplierCategory = [];
                 foreach ($suppliers as $supplier) {
                     foreach ($supplier->categories->take(2) as $category) {
                         $sampleSupplierCategory[] = [
                             'supplier' => $supplier->name,
-                            'category' => $category->name
+                            'category' => $category->name,
+                            'classification' => $supplier->classification
                         ];
                     }
                 }
@@ -1084,7 +1237,7 @@ class TargetController extends Controller
                 // If no suppliers/categories, use defaults
                 if (empty($sampleSupplierCategory)) {
                     $sampleSupplierCategory = [
-                        ['supplier' => 'SAMPLE_SUPPLIER', 'category' => 'SAMPLE_CATEGORY']
+                        ['supplier' => 'SAMPLE_SUPPLIER', 'category' => 'SAMPLE_CATEGORY', 'classification' => 'food']
                     ];
                 }
                 
@@ -1092,12 +1245,12 @@ class TargetController extends Controller
                     $supplierCategory = $sampleSupplierCategory[$index % count($sampleSupplierCategory)];
                     $csvContent[] = sprintf(
                         '%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s',
-                        $salesman->classification ?? 'food', // Classification
+                        $supplierCategory['classification'], // Classification (from supplier)
                         'Active', // Status
                         '2025', // Year
                         '08', // Month
-                        $salesman->region->name ?? 'Sample Region', // Region
-                        $salesman->channel->name ?? 'Sample Channel', // Channel
+                        $salesman->region ? $salesman->region->name : 'Sample Region', // Region
+                        $salesman->channel ? $salesman->channel->name : 'Sample Channel', // Channel
                         $supplierCategory['supplier'], // Supplier
                         $supplierCategory['category'], // Category
                         '', // RouteCode (empty)

@@ -81,16 +81,30 @@
                         </div>
 
                         <div class="mb-3">
-                            <label for="classification" class="form-label">{{ __('Classification') }} *</label>
-                            <select class="form-select @error('classification') is-invalid @enderror" 
-                                    id="classification" name="classification" required>
-                                <option value="">{{ __('Select Classification') }}</option>
-                                <option value="food" {{ old('classification') === 'food' ? 'selected' : '' }}>{{ __('Food') }}</option>
-                                <option value="non_food" {{ old('classification') === 'non_food' ? 'selected' : '' }}>{{ __('Non-Food') }}</option>
-                                <option value="both" {{ old('classification') === 'both' ? 'selected' : '' }}>{{ __('Both') }}</option>
-                            </select>
-                            @error('classification')
-                                <div class="invalid-feedback">{{ $message }}</div>
+                            <label class="form-label">{{ __('Classifications') }} *</label>
+                            <div class="d-flex gap-3">
+                                <div class="form-check">
+                                    <input class="form-check-input @error('classifications') is-invalid @enderror" 
+                                           type="checkbox" name="classifications[]" value="food" id="classification_food"
+                                           {{ in_array('food', old('classifications', [])) ? 'checked' : '' }}>
+                                    <label class="form-check-label" for="classification_food">
+                                        <i class="bi bi-diagram-2 me-1 text-success"></i>{{ __('Food') }}
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input @error('classifications') is-invalid @enderror" 
+                                           type="checkbox" name="classifications[]" value="non_food" id="classification_non_food"
+                                           {{ in_array('non_food', old('classifications', [])) ? 'checked' : '' }}>
+                                    <label class="form-check-label" for="classification_non_food">
+                                        <i class="bi bi-diagram-2 me-1 text-info"></i>{{ __('Non-Food') }}
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="form-text">
+                                <i class="bi bi-info-circle me-1"></i>{{ __('Select one or more classifications for this salesman') }}
+                            </div>
+                            @error('classifications')
+                                <div class="invalid-feedback d-block">{{ $message }}</div>
                             @enderror
                         </div>
 

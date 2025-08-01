@@ -141,23 +141,26 @@
                                 @endif
                             </td>
                             <td>
-                                @if($user->classification)
-                                    @if($user->classification === 'food')
-                                        <span class="badge bg-success-subtle text-success px-2">
-                                            <i class="bi bi-apple me-1"></i>{{ __('Food') }}
-                                        </span>
-                                    @elseif($user->classification === 'non_food')
-                                        <span class="badge bg-info-subtle text-info px-2">
-                                            <i class="bi bi-box me-1"></i>{{ __('Non-Food') }}
-                                        </span>
-                                    @else
-                                        <span class="badge bg-warning-subtle text-warning px-2">
-                                            <i class="bi bi-collection me-1"></i>{{ __('Both') }}
-                                        </span>
-                                    @endif
+                                @php
+                                    $userClassifications = $user->getClassificationListAttribute();
+                                @endphp
+                                @if(!empty($userClassifications))
+                                    <div class="d-flex flex-wrap gap-1">
+                                        @foreach($userClassifications as $classification)
+                                            @if($classification === 'food')
+                                                <span class="badge bg-success-subtle text-success px-2">
+                                                    <i class="bi bi-apple me-1"></i>{{ __('Food') }}
+                                                </span>
+                                            @elseif($classification === 'non_food')
+                                                <span class="badge bg-info-subtle text-info px-2">
+                                                    <i class="bi bi-box me-1"></i>{{ __('Non-Food') }}
+                                                </span>
+                                            @endif
+                                        @endforeach
+                                    </div>
                                 @else
                                     <span class="text-muted small">
-                                        <i class="bi bi-dash-circle me-1"></i>{{ __('All Classifications') }}
+                                        <i class="bi bi-dash-circle me-1"></i>{{ __('No Classifications') }}
                                     </span>
                                 @endif
                             </td>

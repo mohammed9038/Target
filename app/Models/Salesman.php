@@ -15,7 +15,6 @@ class Salesman extends Model
         'name',
         'region_id',
         'channel_id',
-        'classification',
     ];
 
     protected static function boot()
@@ -51,6 +50,21 @@ class Salesman extends Model
         return $this->hasMany(SalesTarget::class);
     }
 
+    public function classifications()
+    {
+        return $this->hasMany(SalesmanClassification::class);
+    }
+
+    public function hasClassification($classification)
+    {
+        return $this->classifications()->where('classification', $classification)->exists();
+    }
+
+    public function getClassificationListAttribute()
+    {
+        return $this->classifications()->pluck('classification')->toArray();
+    }
+
     public function scopeActive($query)
     {
         return $query->whereHas('region', function ($q) {
@@ -62,6 +76,8 @@ class Salesman extends Model
 
     public function scopeByClassification($query, $classification)
     {
-        return $query->where('classification', $classification);
+        return $query->whereHas('classifications', function($q) use ($classification) {
+            $q->where('classification', $classification);
+        });
     }
 } 

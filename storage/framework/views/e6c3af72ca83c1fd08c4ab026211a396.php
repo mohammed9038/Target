@@ -141,8 +141,10 @@ unset($__errorArgs, $__bag); ?>
                         </div>
 
                         <div class="mb-3">
-                            <label for="classification" class="form-label"><?php echo e(__('Classification')); ?> *</label>
-                            <select class="form-select <?php $__errorArgs = ['classification'];
+                            <label class="form-label"><?php echo e(__('Classifications')); ?> *</label>
+                            <div class="d-flex gap-3">
+                                <div class="form-check">
+                                    <input class="form-check-input <?php $__errorArgs = ['classifications'];
 $__bag = $errors->getBag($__errorArgs[1] ?? 'default');
 if ($__bag->has($__errorArgs[0])) :
 if (isset($message)) { $__messageOriginal = $message; }
@@ -150,18 +152,40 @@ $message = $__bag->first($__errorArgs[0]); ?> is-invalid <?php unset($message);
 if (isset($__messageOriginal)) { $message = $__messageOriginal; }
 endif;
 unset($__errorArgs, $__bag); ?>" 
-                                    id="classification" name="classification" required>
-                                <option value=""><?php echo e(__('Select Classification')); ?></option>
-                                <option value="food" <?php echo e(old('classification', $salesman->classification) === 'food' ? 'selected' : ''); ?>><?php echo e(__('Food')); ?></option>
-                                <option value="non_food" <?php echo e(old('classification', $salesman->classification) === 'non_food' ? 'selected' : ''); ?>><?php echo e(__('Non-Food')); ?></option>
-                                <option value="both" <?php echo e(old('classification', $salesman->classification) === 'both' ? 'selected' : ''); ?>><?php echo e(__('Both')); ?></option>
-                            </select>
-                            <?php $__errorArgs = ['classification'];
+                                           type="checkbox" name="classifications[]" value="food" id="classification_food"
+                                           <?php echo e(in_array('food', old('classifications', $salesman->getClassificationListAttribute())) ? 'checked' : ''); ?>>
+                                    <label class="form-check-label" for="classification_food">
+                                        <i class="bi bi-diagram-2 me-1 text-success"></i><?php echo e(__('Food')); ?>
+
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input <?php $__errorArgs = ['classifications'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?> is-invalid <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?>" 
+                                           type="checkbox" name="classifications[]" value="non_food" id="classification_non_food"
+                                           <?php echo e(in_array('non_food', old('classifications', $salesman->getClassificationListAttribute())) ? 'checked' : ''); ?>>
+                                    <label class="form-check-label" for="classification_non_food">
+                                        <i class="bi bi-diagram-2 me-1 text-info"></i><?php echo e(__('Non-Food')); ?>
+
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="form-text">
+                                <i class="bi bi-info-circle me-1"></i><?php echo e(__('Select one or more classifications for this salesman')); ?>
+
+                            </div>
+                            <?php $__errorArgs = ['classifications'];
 $__bag = $errors->getBag($__errorArgs[1] ?? 'default');
 if ($__bag->has($__errorArgs[0])) :
 if (isset($message)) { $__messageOriginal = $message; }
 $message = $__bag->first($__errorArgs[0]); ?>
-                                <div class="invalid-feedback"><?php echo e($message); ?></div>
+                                <div class="invalid-feedback d-block"><?php echo e($message); ?></div>
                             <?php unset($message);
 if (isset($__messageOriginal)) { $message = $__messageOriginal; }
 endif;

@@ -17,27 +17,37 @@ class ReportController extends Controller
         $query = SalesTarget::with(['region', 'channel', 'salesman', 'supplier', 'category']);
 
         // Apply user scope
-        if ($user->isManager()) {
-            $regionIds = $user->getRegionIds();
-            $channelIds = $user->getChannelIds();
+        if (!$user->isAdmin()) {
+            $userScope = $user->scope();
             
-            if (!empty($regionIds)) {
-                $query->whereIn('region_id', $regionIds);
-            }
-            if (!empty($channelIds)) {
-                $query->whereIn('channel_id', $channelIds);
-            }
-                  
-            // Apply classification filter if specified
-            if ($user->classification && $user->classification !== 'both') {
-                $query->whereHas('salesman', function($q) use ($user) {
-                    $q->where('classification', $user->classification);
-                });
+            if ($userScope) {
+                // Apply region scope
+                if (!empty($userScope['region_ids'])) {
+                    $query->whereHas('salesman', function($q) use ($userScope) {
+                        $q->whereIn('region_id', $userScope['region_ids']);
+                    });
+                }
                 
-                // Also filter by supplier classification
-                $query->whereHas('supplier', function($q) use ($user) {
-                    $q->where('classification', $user->classification);
-                });
+                // Apply channel scope
+                if (!empty($userScope['channel_ids'])) {
+                    $query->whereHas('salesman', function($q) use ($userScope) {
+                        $q->whereIn('channel_id', $userScope['channel_ids']);
+                    });
+                }
+                
+                // Apply classification scope using many-to-many
+                if (!empty($userScope['classifications'])) {
+                    $query->whereHas('salesman', function($q) use ($userScope) {
+                        $q->whereHas('classifications', function($subQ) use ($userScope) {
+                            $subQ->whereIn('classification', $userScope['classifications']);
+                        });
+                    });
+                    
+                    // Also filter by supplier classification
+                    $query->whereHas('supplier', function($q) use ($userScope) {
+                        $q->whereIn('classification', $userScope['classifications']);
+                    });
+                }
             }
         }
 
@@ -67,11 +77,11 @@ class ReportController extends Controller
         }
 
         if ($request->filled('classification')) {
-            if ($request->classification !== 'both') {
-                $query->whereHas('salesman', function($q) use ($request) {
-                    $q->where('classification', $request->classification);
+            $query->whereHas('salesman', function($q) use ($request) {
+                $q->whereHas('classifications', function($subQ) use ($request) {
+                    $subQ->where('classification', $request->classification);
                 });
-            }
+            });
         }
 
         if ($request->filled('salesman_id')) {
@@ -159,12 +169,8 @@ class ReportController extends Controller
         
         // Apply user scope for managers
         $scope = null;
-        if ($user->isManager()) {
-            $scope = [
-                'region_id' => $user->region_id,
-                'channel_id' => $user->channel_id,
-                'classification' => $user->classification,
-            ];
+        if (!$user->isAdmin()) {
+            $scope = $user->scope();
         }
 
         $filters = $request->only([

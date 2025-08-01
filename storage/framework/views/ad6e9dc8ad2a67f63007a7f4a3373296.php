@@ -159,26 +159,28 @@
                                 <?php endif; ?>
                             </td>
                             <td>
-                                <?php if($user->classification): ?>
-                                    <?php if($user->classification === 'food'): ?>
-                                        <span class="badge bg-success-subtle text-success px-2">
-                                            <i class="bi bi-apple me-1"></i><?php echo e(__('Food')); ?>
+                                <?php
+                                    $userClassifications = $user->getClassificationListAttribute();
+                                ?>
+                                <?php if(!empty($userClassifications)): ?>
+                                    <div class="d-flex flex-wrap gap-1">
+                                        <?php $__currentLoopData = $userClassifications; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $classification): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                            <?php if($classification === 'food'): ?>
+                                                <span class="badge bg-success-subtle text-success px-2">
+                                                    <i class="bi bi-apple me-1"></i><?php echo e(__('Food')); ?>
 
-                                        </span>
-                                    <?php elseif($user->classification === 'non_food'): ?>
-                                        <span class="badge bg-info-subtle text-info px-2">
-                                            <i class="bi bi-box me-1"></i><?php echo e(__('Non-Food')); ?>
+                                                </span>
+                                            <?php elseif($classification === 'non_food'): ?>
+                                                <span class="badge bg-info-subtle text-info px-2">
+                                                    <i class="bi bi-box me-1"></i><?php echo e(__('Non-Food')); ?>
 
-                                        </span>
-                                    <?php else: ?>
-                                        <span class="badge bg-warning-subtle text-warning px-2">
-                                            <i class="bi bi-collection me-1"></i><?php echo e(__('Both')); ?>
-
-                                        </span>
-                                    <?php endif; ?>
+                                                </span>
+                                            <?php endif; ?>
+                                        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                                    </div>
                                 <?php else: ?>
                                     <span class="text-muted small">
-                                        <i class="bi bi-dash-circle me-1"></i><?php echo e(__('All Classifications')); ?>
+                                        <i class="bi bi-dash-circle me-1"></i><?php echo e(__('No Classifications')); ?>
 
                                     </span>
                                 <?php endif; ?>

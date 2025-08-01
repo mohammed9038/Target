@@ -11,7 +11,7 @@ class SalesmanController extends Controller
 {
     public function index()
     {
-        $salesmen = Salesman::with(['region', 'channel'])->paginate(15);
+        $salesmen = Salesman::with(['region', 'channel', 'classifications'])->paginate(15);
         return view('salesmen.index', compact('salesmen'));
     }
 
@@ -29,10 +29,23 @@ class SalesmanController extends Controller
             'name' => 'required|string|max:255',
             'region_id' => 'required|exists:regions,id',
             'channel_id' => 'required|exists:channels,id',
-            'classification' => 'required|in:food,non_food,both',
+            'classifications' => 'required|array|min:1',
+            'classifications.*' => 'in:food,non_food',
         ]);
 
-        Salesman::create($validated);
+        // Remove classifications from validated data for salesman creation
+        $classifications = $validated['classifications'];
+        unset($validated['classifications']);
+
+        $salesman = Salesman::create($validated);
+        
+        // Add classifications
+        foreach ($classifications as $classification) {
+            \App\Models\SalesmanClassification::create([
+                'salesman_id' => $salesman->id,
+                'classification' => $classification
+            ]);
+        }
         return redirect()->route('salesmen.index')->with('success', 'Salesman created successfully.');
     }
 
@@ -50,10 +63,24 @@ class SalesmanController extends Controller
             'name' => 'required|string|max:255',
             'region_id' => 'required|exists:regions,id',
             'channel_id' => 'required|exists:channels,id',
-            'classification' => 'required|in:food,non_food,both',
+            'classifications' => 'required|array|min:1',
+            'classifications.*' => 'in:food,non_food',
         ]);
 
+        // Remove classifications from validated data for salesman update
+        $classifications = $validated['classifications'];
+        unset($validated['classifications']);
+
         $salesman->update($validated);
+        
+        // Update classifications
+        $salesman->classifications()->delete(); // Remove existing classifications
+        foreach ($classifications as $classification) {
+            \App\Models\SalesmanClassification::create([
+                'salesman_id' => $salesman->id,
+                'classification' => $classification
+            ]);
+        }
         return redirect()->route('salesmen.index')->with('success', 'Salesman updated successfully.');
     }
 

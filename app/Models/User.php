@@ -79,6 +79,21 @@ class User extends Authenticatable
         return $this->channels()->where('channels.id', $channelId)->exists();
     }
 
+    public function classifications()
+    {
+        return $this->hasMany(UserClassification::class);
+    }
+
+    public function hasClassification($classification)
+    {
+        return $this->classifications()->where('classification', $classification)->exists();
+    }
+
+    public function getClassificationListAttribute()
+    {
+        return $this->classifications()->pluck('classification')->toArray();
+    }
+
     public function isAdmin()
     {
         return $this->role === 'admin';
@@ -100,9 +115,10 @@ class User extends Authenticatable
             'channel_ids' => $this->getChannelIds(),
         ];
 
-        // Add classification scope if specified
-        if ($this->classification) {
-            $scope['classification'] = $this->classification;
+        // Add classification scope using many-to-many relationship
+        $userClassifications = $this->getClassificationListAttribute();
+        if (!empty($userClassifications)) {
+            $scope['classifications'] = $userClassifications;
         }
 
         return $scope;

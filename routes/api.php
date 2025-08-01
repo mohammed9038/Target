@@ -42,9 +42,34 @@ Route::prefix('v1')->group(function () {
     Route::get('/test-auth', function() {
         return response()->json([
             'authenticated' => auth()->check(),
-            'user' => auth()->user() ? auth()->user()->email : null,
+            'user' => auth()->user() ? auth()->user()->username : null,
             'guard' => config('auth.defaults.guard')
         ]);
+    });
+    
+    // Debug matrix endpoint
+    Route::get('/debug-matrix', function() {
+        try {
+            $userCount = App\Models\User::count();
+            $salesmenCount = App\Models\Salesman::count();
+            $suppliersCount = App\Models\Supplier::count();
+            
+            return response()->json([
+                'status' => 'success',
+                'auth_check' => auth()->check(),
+                'user' => auth()->user() ? auth()->user()->username : null,
+                'counts' => [
+                    'users' => $userCount,
+                    'salesmen' => $salesmenCount,
+                    'suppliers' => $suppliersCount
+                ]
+            ]);
+        } catch (Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => $e->getMessage()
+            ]);
+        }
     });
 
     // Protected routes

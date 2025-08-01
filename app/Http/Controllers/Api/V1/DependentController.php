@@ -25,7 +25,7 @@ class DependentController extends Controller
         return response()->json([
             'data' => [
                 'role' => $user->role,
-                'classification' => $user->classification,
+                'classifications' => $user->getClassificationListAttribute(),
                 'is_admin' => $user->isAdmin(),
                 'scope' => $scope
             ]
@@ -68,7 +68,8 @@ class DependentController extends Controller
     public function salesmen()
     {
         $user = auth()->user();
-        $query = Salesman::whereHas('region', function ($query) {
+        $query = Salesman::with('classifications')
+            ->whereHas('region', function ($query) {
                 $query->where('is_active', true);
             })
             ->whereHas('channel', function ($query) {
@@ -86,10 +87,9 @@ class DependentController extends Controller
                 $query->whereIn('channel_id', $scope['channel_ids']);
             }
             // Apply classification filter if specified
-            if (isset($scope['classification']) && $scope['classification'] !== 'both') {
-                $query->where(function($q) use ($scope) {
-                    $q->where('classification', $scope['classification'])
-                      ->orWhere('classification', 'both');
+            if (!empty($scope['classifications'])) {
+                $query->whereHas('classifications', function($q) use ($scope) {
+                    $q->whereIn('classification', $scope['classifications']);
                 });
             }
         }
@@ -106,8 +106,8 @@ class DependentController extends Controller
         // For non-admin users, filter suppliers by classification that matches their permission
         if (!$user->isAdmin()) {
             $scope = $user->scope();
-            if (isset($scope['classification']) && $scope['classification'] !== 'both') {
-                $query->where('classification', $scope['classification']);
+            if (!empty($scope['classifications'])) {
+                $query->whereIn('classification', $scope['classifications']);
             }
         }
         
@@ -123,9 +123,9 @@ class DependentController extends Controller
         // For non-admin users, only show categories that belong to suppliers they can access
         if (!$user->isAdmin()) {
             $scope = $user->scope();
-            if (isset($scope['classification']) && $scope['classification'] !== 'both') {
+            if (!empty($scope['classifications'])) {
                 $query->whereHas('supplier', function ($q) use ($scope) {
-                    $q->where('classification', $scope['classification']);
+                    $q->whereIn('classification', $scope['classifications']);
                 });
             }
         }

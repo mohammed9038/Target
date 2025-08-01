@@ -12,7 +12,7 @@ class UserController extends Controller
 {
     public function index()
     {
-        $users = User::with(['regions', 'channels'])->paginate(15);
+        $users = User::with(['regions', 'channels', 'classifications'])->paginate(15);
         return view('users.index', compact('users'));
     }
 
@@ -33,24 +33,34 @@ class UserController extends Controller
             'region_ids.*' => 'exists:regions,id',
             'channel_ids' => 'nullable|array',
             'channel_ids.*' => 'exists:channels,id',
-            'classification' => 'nullable|in:food,non_food,both',
+            'classifications' => 'nullable|array',
+            'classifications.*' => 'in:food,non_food',
         ]);
 
         $validated['password'] = Hash::make($validated['password']);
         
-        // Remove region_ids and channel_ids from validated data for user creation
+        // Remove region_ids, channel_ids, and classifications from validated data for user creation
         $regionIds = $validated['region_ids'] ?? [];
         $channelIds = $validated['channel_ids'] ?? [];
-        unset($validated['region_ids'], $validated['channel_ids']);
+        $classifications = $validated['classifications'] ?? [];
+        unset($validated['region_ids'], $validated['channel_ids'], $validated['classifications']);
 
         $user = User::create($validated);
         
-        // Attach regions and channels
+        // Attach regions, channels, and classifications
         if (!empty($regionIds)) {
             $user->regions()->attach($regionIds);
         }
         if (!empty($channelIds)) {
             $user->channels()->attach($channelIds);
+        }
+        if (!empty($classifications)) {
+            foreach ($classifications as $classification) {
+                \App\Models\UserClassification::create([
+                    'user_id' => $user->id,
+                    'classification' => $classification
+                ]);
+            }
         }
         
         return redirect()->route('users.index')->with('success', 'User created successfully.');
@@ -78,7 +88,8 @@ class UserController extends Controller
             'region_ids.*' => 'exists:regions,id',
             'channel_ids' => 'nullable|array',
             'channel_ids.*' => 'exists:channels,id',
-            'classification' => 'nullable|in:food,non_food,both',
+            'classifications' => 'nullable|array',
+            'classifications.*' => 'in:food,non_food',
         ]);
 
         if (!empty($validated['password'])) {
@@ -87,16 +98,28 @@ class UserController extends Controller
             unset($validated['password']);
         }
 
-        // Remove region_ids and channel_ids from validated data for user update
+        // Remove region_ids, channel_ids, and classifications from validated data for user update
         $regionIds = $validated['region_ids'] ?? [];
         $channelIds = $validated['channel_ids'] ?? [];
-        unset($validated['region_ids'], $validated['channel_ids']);
+        $classifications = $validated['classifications'] ?? [];
+        unset($validated['region_ids'], $validated['channel_ids'], $validated['classifications']);
 
         $user->update($validated);
         
-        // Sync regions and channels
+        // Sync regions, channels, and classifications
         $user->regions()->sync($regionIds);
         $user->channels()->sync($channelIds);
+        
+        // Update classifications
+        $user->classifications()->delete(); // Remove existing classifications
+        if (!empty($classifications)) {
+            foreach ($classifications as $classification) {
+                \App\Models\UserClassification::create([
+                    'user_id' => $user->id,
+                    'classification' => $classification
+                ]);
+            }
+        }
         
         return redirect()->route('users.index')->with('success', 'User updated successfully.');
     }

@@ -100,8 +100,7 @@
                 </label>
                 <select class="form-select form-select-sm border-0 shadow-sm" id="filter_classification" style="border-radius: 8px;">
                     <option value="">{{ __('All Types') }}</option>
-                    <option value="food">{{ __('Food') }}</option>
-                    <option value="non_food">{{ __('Non Food') }}</option>
+                    <!-- Options will be populated dynamically based on user permissions -->
                 </select>
             </div>
             <div class="col-lg-2 col-md-4 col-sm-6">
@@ -347,14 +346,35 @@
             const userData = await userResponse.json();
             const user = userData.data;
             
-            // Auto-set filters based on user's permissions
+            // Populate classification dropdown based on user permissions
             const classificationSelect = document.getElementById('filter_classification');
             
-            if (!user.is_admin && user.classification) {
-                // Set user's classification filter
-                classificationSelect.value = user.classification;
+            if (user.is_admin) {
+                // Admin can see all classifications
+                classificationSelect.innerHTML = `
+                    <option value="">All Types</option>
+                    <option value="food">Food</option>
+                    <option value="non_food">Non-Food</option>
+                `;
+            } else if (user.classifications && user.classifications.length > 0) {
+                // Manager can only see their assigned classifications
+                let optionsHtml = '<option value="">All Types</option>';
                 
-                // Auto-select region and channel if user has only one option
+                user.classifications.forEach(classification => {
+                    const label = classification === 'food' ? 'Food' : 'Non-Food';
+                    optionsHtml += `<option value="${classification}">${label}</option>`;
+                });
+                
+                classificationSelect.innerHTML = optionsHtml;
+                
+                // If user has only one classification, auto-select it
+                if (user.classifications.length === 1) {
+                    classificationSelect.value = user.classifications[0];
+                }
+            }
+            
+            // Auto-select region and channel if user has only one option
+            if (!user.is_admin) {
                 if (regions.length === 1) {
                     document.getElementById('filter_region').value = regions[0].id;
                 }
@@ -362,7 +382,7 @@
                     document.getElementById('filter_channel').value = channels[0].id;
                 }
                 
-                console.log(`Auto-applied user filters - Classification: ${user.classification}, Regions: ${regions.length}, Channels: ${channels.length}`);
+                console.log(`Auto-applied user filters - Classifications: ${user.classifications?.join(', ')}, Regions: ${regions.length}, Channels: ${channels.length}`);
             }
         } catch (error) {
             console.log('Could not auto-set user filters:', error);
@@ -406,10 +426,32 @@
 
         const params = new URLSearchParams(getCurrentFilters());
         try {
-            const response = await fetch(`/api/v1/targets/matrix?${params}`);
-            if (!response.ok) throw new Error((await response.json()).message || 'Failed to load data.');
+            console.log('Loading matrix with params:', params.toString());
+            const response = await fetch(`/api/v1/targets/matrix?${params}`, {
+                method: 'GET',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                },
+                credentials: 'same-origin'
+            });
+            console.log('Response status:', response.status);
+            console.log('Response headers:', response.headers);
+            
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('Error response:', errorText);
+                throw new Error('Failed to load data: ' + response.status);
+            }
             
             const result = await response.json();
+            console.log('Matrix data received:', result);
+            
+            if (!result.data) {
+                throw new Error('Invalid response format - missing data field');
+            }
+            
             isPeriodOpen = result.data.is_period_open;
             document.getElementById("saveAllBtn").style.display = isPeriodOpen ? 'flex' : 'none';
             renderMatrix(result.data);
@@ -425,22 +467,36 @@
     }
 
     function renderMatrix({ salesmen, suppliers, targets }) {
+        console.log('Rendering matrix with:', { 
+            salesmenCount: salesmen?.length || 0, 
+            suppliersCount: suppliers?.length || 0, 
+            targetsCount: targets?.length || 0 
+        });
+        
+
+        
         const tbody = document.querySelector("#target-matrix tbody");
         tbody.innerHTML = "";
         
-        if (salesmen.length === 0 || suppliers.length === 0) {
+        if (!salesmen || !suppliers || salesmen.length === 0 || suppliers.length === 0) {
+            console.log('No data to display - showing empty state');
             document.getElementById("matrix-empty").style.display = "block";
             return;
         }
+
+
 
         const targetsMap = targets.reduce((map, t) => {
             map[`${t.salesman_id}-${t.supplier_id}-${t.category_id}`] = t.target_amount;
             return map;
         }, {});
 
+        let rowCount = 0;
         salesmen.forEach(s => {
             suppliers.forEach(sup => {
-                if (isClassificationCompatible(s.salesman_classification, sup.supplier_classification)) {
+                const compatible = isClassificationCompatible(s.salesman_classifications, sup.supplier_classification);
+                if (compatible) {
+                    rowCount++;
                     const key = `${s.salesman_id}-${sup.supplier_id}-${sup.category_id}`;
                     tbody.innerHTML += `
                         <tr class="border-0" style="border-bottom: 1px solid #e9ecef !important;">
@@ -491,14 +547,21 @@
             });
         });
         
+
+        
         // Hide empty state and show matrix
         document.getElementById("matrix-empty").style.display = "none";
         document.getElementById("matrix-container").style.display = "block";
         isMatrixLoaded = true;
     }
 
-    function isClassificationCompatible(salesmanClass, supplierClass) {
-        return salesmanClass === 'both' || supplierClass === 'both' || salesmanClass === supplierClass;
+    function isClassificationCompatible(salesmanClassifications, supplierClass) {
+        // salesmanClassifications is now an array, supplierClass is a single value
+        if (!Array.isArray(salesmanClassifications)) {
+            return false;
+        }
+        // Check if any of the salesman's classifications match the supplier's classification
+        return salesmanClassifications.includes(supplierClass);
     }
 
     async function saveAllTargets() {
@@ -723,6 +786,24 @@
     }
 
     document.addEventListener("DOMContentLoaded", function() {
+        // Test authentication on page load
+        console.log('Page loaded. Testing authentication...');
+        fetch('/api/v1/test-auth', {
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json'
+            },
+            credentials: 'same-origin'
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log('Auth test result:', data);
+        })
+        .catch(error => {
+            console.error('Auth test failed:', error);
+        });
+        
         loadMasterData();
         
         // Add event listeners to reset matrix loaded state when filters change

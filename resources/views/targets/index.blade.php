@@ -194,6 +194,9 @@
                             <th class="border-0 py-3 px-4 fw-semibold">
                                 <i class="bi bi-tags me-2"></i>{{ __('Category') }}
                             </th>
+                            <th class="border-0 py-3 px-4 fw-semibold">
+                                <i class="bi bi-diagram-2 me-2"></i>{{ __('Classification') }}
+                            </th>
                             <th class="border-0 py-3 px-4 fw-semibold text-center">
                                 <i class="bi bi-currency-dollar me-2"></i>{{ __('Target Amount') }}
                             </th>
@@ -259,6 +262,25 @@
 
     let isPeriodOpen = false;
     let isMatrixLoaded = false;
+
+    // Helper functions for classification display
+    function getClassificationLabel(classification) {
+        switch(classification) {
+            case 'food': return 'Food';
+            case 'non_food': return 'Non-Food';
+            case 'both': return 'Both';
+            default: return classification || 'N/A';
+        }
+    }
+
+    function getClassificationBadgeClass(classification) {
+        switch(classification) {
+            case 'food': return 'bg-success bg-opacity-10 text-success';
+            case 'non_food': return 'bg-info bg-opacity-10 text-info';
+            case 'both': return 'bg-secondary bg-opacity-10 text-secondary';
+            default: return 'bg-light text-muted';
+        }
+    }
 
     const apiOptions = {
         headers: {
@@ -446,6 +468,11 @@
                             <td class="py-3 px-4 border-0">
                                 <span class="badge bg-primary bg-opacity-10 text-primary px-2 py-1">
                                     ${sup.category_name}
+                                </span>
+                            </td>
+                            <td class="py-3 px-4 border-0">
+                                <span class="badge ${getClassificationBadgeClass(sup.supplier_classification)} px-2 py-1">
+                                    <i class="bi bi-diagram-2 me-1"></i>${getClassificationLabel(sup.supplier_classification)}
                                 </span>
                             </td>
                             <td class="py-3 px-4 border-0 text-center">

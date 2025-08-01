@@ -93,7 +93,21 @@ Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
-
+// Debug route for checking users (outside auth middleware)
+Route::get('/debug-users', function() {
+    $users = DB::table('users')->get();
+    return response()->json([
+        'users_count' => $users->count(),
+        'users' => $users->map(function($user) {
+            return [
+                'id' => $user->id,
+                'username' => $user->username,
+                'role' => $user->role,
+                'created_at' => $user->created_at
+            ];
+        })
+    ]);
+});
 
 // Protected routes
 Route::middleware(['auth'])->group(function () {
@@ -159,6 +173,8 @@ Route::middleware(['auth'])->group(function () {
         return view('debug-api');
     });
     
+
+
     // Debug route for testing matrix data
     Route::get('/debug-matrix', function() {
         

@@ -360,7 +360,7 @@ class TargetController extends Controller
             'targets.*.salesman_id' => 'required|exists:salesmen,id',
             'targets.*.supplier_id' => 'required|exists:suppliers,id',
             'targets.*.category_id' => 'required|exists:categories,id',
-            'targets.*.amount' => 'required|numeric|min:0',
+            'targets.*.amount' => 'present|numeric|min:0',
         ]);
 
         $user = Auth::user();

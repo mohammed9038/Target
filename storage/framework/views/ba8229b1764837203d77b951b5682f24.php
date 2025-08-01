@@ -3,7 +3,7 @@
 <?php $__env->startSection('title', __('Sales Targets')); ?>
 
 <?php $__env->startSection('content'); ?>
-<div id="alert-container"></div>
+<div id="alert-container" style="position: fixed; top: 20px; right: 20px; z-index: 9999; min-width: 300px;"></div>
 <div class="d-flex justify-content-between align-items-start mb-4">
     <div>
         <h1 class="h2 mb-1"><?php echo e(__('Sales Targets')); ?></h1>
@@ -97,7 +97,7 @@
             </div>
             <div class="col-md-2">
                 <label for="filter_category" class="form-label"><?php echo e(__('Category')); ?></label>
-                <select class="form-select" id="filter_category">
+                <select class="form-select" id="filter__category">
                     <option value=""><?php echo e(__('All Categories')); ?></option>
                 </select>
             </div>
@@ -152,7 +152,6 @@
                     <tbody></tbody>
                 </table>
             </div>
-             <div id="pagination-container" class="mt-3"></div>
         </div>
         
         <div id="matrix-empty" class="text-center py-4">
@@ -162,23 +161,53 @@
     </div>
 </div>
 
+<!-- Upload Modal -->
+<div class="modal fade" id="uploadModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><?php echo e(__('Upload Targets')); ?></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="uploadForm" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label for="upload_file" class="form-label"><?php echo e(__('Select CSV File')); ?></label>
+                        <input type="file" class="form-control" id="upload_file" name="csv_file" accept=".csv" required>
+                        <div class="form-text"><?php echo e(__('Please upload a CSV file with the correct format.')); ?></div>
+                    </div>
+                    <input type="hidden" id="upload_year" name="year">
+                    <input type="hidden" id="upload_month" name="month">
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?php echo e(__('Cancel')); ?></button>
+                <button type="button" class="btn btn-primary" onclick="uploadTargets()">
+                    <i class="bi bi-upload me-1"></i><?php echo e(__('Upload')); ?>
+
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 <?php $__env->stopSection(); ?>
 
-<?php $__env->startSection('scripts'); ?>
+<?php $__env->startPush('scripts'); ?>
 <script>
-    console.log("🎯 TARGET PAGE SCRIPT LOADED - V2.2 FINAL");
+    console.log("🎯 TARGET PAGE SCRIPT LOADED - V2.4 FINAL & CORRECTED");
 
     // ==================== GLOBAL VARIABLES ====================
     let salesmenData = [];
     let suppliersData = [];
-    let targetsData = {}; // Use a map for quick lookups: 'salesman-supplier-category' -> amount
+    let targetsData = {}; 
     let masterData = {
         regions: [],
         channels: [],
         suppliers: [],
+        categories: [],
         salesmen: []
     };
-    
+
     // ==================== API CONFIGURATION ====================
     const apiOptions = {
         headers: {
@@ -191,21 +220,10 @@
     // ==================== UTILITY FUNCTIONS ====================
     function showAlert(message, type = "info") {
         const alertContainer = document.getElementById('alert-container');
-        if (!alertContainer) {
-            const container = document.createElement('div');
-            container.id = 'alert-container';
-            container.style.position = 'fixed';
-            container.style.top = '20px';
-            container.style.right = '20px';
-            container.style.zIndex = '9999';
-            document.body.appendChild(container);
-        }
-        
         const alertDiv = document.createElement("div");
         alertDiv.className = `alert alert-${type === "error" ? "danger" : type} alert-dismissible fade show`;
         alertDiv.innerHTML = `${message}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
-        document.getElementById('alert-container').appendChild(alertDiv);
-        
+        alertContainer.appendChild(alertDiv);
         setTimeout(() => alertDiv.remove(), 5000);
     }
 
@@ -231,30 +249,34 @@
     async function loadMasterData() {
         console.log("📥 Loading master data...");
         try {
-            const [regionsRes, channelsRes, salesmenRes, suppliersRes, categoriesRes] = await Promise.all([
+            const responses = await Promise.all([
                 fetch(`/api/deps/regions`, { headers: apiOptions.headers }),
                 fetch(`/api/deps/channels`, { headers: apiOptions.headers }),
-                fetch(`/api/deps/salesmen`, { headers: apiOptions.headers }),
                 fetch(`/api/deps/suppliers`, { headers: apiOptions.headers }),
-                fetch(`/api/deps/categories`, { headers: apiOptions.headers })
+                fetch(`/api/deps/categories`, { headers: apiOptions.headers }),
+                fetch(`/api/deps/salesmen`, { headers: apiOptions.headers })
             ]);
 
-            masterData.regions = (await regionsRes.json()).data || [];
-            masterData.channels = (await channelsRes.json()).data || [];
-            masterData.salesmen = (await salesmenRes.json()).data || [];
-            masterData.suppliers = (await suppliersRes.json()).data || [];
-            const categories = (await categoriesRes.json()).data || [];
+            const [regions, channels, suppliers, categories, salesmen] = await Promise.all(responses.map(res => res.json()));
+
+            masterData = {
+                regions: regions.data || [],
+                channels: channels.data || [],
+                suppliers: suppliers.data || [],
+                categories: categories.data || [],
+                salesmen: salesmen.data || []
+            };
 
             populateSelect("filter_region", masterData.regions, "id", "name");
             populateSelect("filter_channel", masterData.channels, "id", "name");
-            populateSelect("filter_salesman", masterData.salesmen, "id", "name");
             populateSelect("filter_supplier", masterData.suppliers, "id", "name");
-            populateSelect("filter_category", categories, "id", "name");
+            populateSelect("filter_category", masterData.categories, "id", "name");
+            populateSelect("filter_salesman", masterData.salesmen, "id", "name");
             
             console.log("✅ Master data loaded");
         } catch (error) {
             console.error("❌ Error loading master data:", error);
-            showAlert("Failed to load filter data. Please refresh the page.", "error");
+            showAlert("Failed to load filter data.", "error");
         }
     }
 
@@ -265,26 +287,24 @@
         const month = document.getElementById("target_month")?.value;
 
         if (!year || !month) {
-            showAlert("Please select both year and month", "warning");
+            showAlert("Please select both year and month.", "warning");
             return;
         }
 
         const loadBtn = document.getElementById("loadMatrixBtn");
         loadBtn.disabled = true;
-        loadBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Loading...`;
+        loadBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-2"></span>Loading...`;
 
         document.getElementById("matrix-loading").style.display = "block";
         document.getElementById("matrix-container").style.display = "none";
         document.getElementById("matrix-empty").style.display = "none";
-        document.getElementById('pagination-container').innerHTML = '';
-
 
         try {
             const filters = getCurrentFilters();
             const params = new URLSearchParams({ year, month, ...filters });
             const response = await fetch(`/api/targets/matrix?${params}`, { headers: apiOptions.headers });
 
-            if (!response.ok) throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+            if (!response.ok) throw new Error(`Server Error: ${response.statusText}`);
             
             const result = await response.json();
             
@@ -297,9 +317,9 @@
                 }, {});
 
                 renderMatrixPage();
-                showAlert(`Matrix data loaded successfully.`, "success");
+                showAlert(`Matrix data loaded.`, "success");
             } else {
-                 throw new Error("Invalid data format from server. Expected an object with salesmen, suppliers, and targets.");
+                 throw new Error("Invalid data format received from server.");
             }
         } catch (error) {
             console.error("❌ Error loading matrix:", error);
@@ -425,7 +445,7 @@
                  throw new Error(errorData.message || `Server error ${response.status}`);
             }
             const result = await response.json();
-            showAlert(`${result.saved} targets saved successfully.`, "success");
+            showAlert(`${result.saved_count} targets saved successfully.`, "success");
             
             targetsToSave.forEach(t => {
                 targetsData[`${t.salesman_id}-${t.supplier_id}-${t.category_id}`] = t.target_amount;
@@ -439,6 +459,20 @@
             saveBtn.innerHTML = `<i class="bi bi-check-circle me-2"></i>Save All Targets`;
         }
     }
+    
+    // ==================== OTHER FUNCTIONS (Upload, Export, etc.) ====================
+    function showUploadModal() {
+        showAlert("Upload functionality is not yet implemented in this view.", "info");
+    }
+    
+    function exportTargets() {
+        showAlert("Export functionality is not yet implemented in this view.", "info");
+    }
+
+    function downloadTemplate() {
+        showAlert("Template download is not yet implemented in this view.", "info");
+    }
+
 
     // ==================== INITIALIZATION ====================
     document.addEventListener("DOMContentLoaded", function() {
@@ -449,9 +483,12 @@
         window.applyFilters = applyFilters;
         window.resetFilters = resetFilters;
         window.saveAllTargets = saveAllTargets;
+        window.showUploadModal = showUploadModal;
+        window.exportTargets = exportTargets;
+        window.downloadTemplate = downloadTemplate;
     });
 
 </script>
-<?php $__env->stopSection(); ?>
+<?php $__env->stopPush(); ?>
 
 <?php echo $__env->make('layouts.app', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?><?php /**PATH C:\New target\target-system\resources\views/targets/index.blade.php ENDPATH**/ ?>

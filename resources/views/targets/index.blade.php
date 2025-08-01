@@ -34,7 +34,7 @@
 </div>
 
 <!-- Modern Compact Filters Panel -->
-<div class="card border-0 shadow-sm mb-4" style="border-radius: 12px; background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);">
+<div class="card border-0 shadow-sm mb-4" style="border-radius: 12px; background: linear-gradient(135deg, #ffffff 0%, #f9fafb 100%); border: 1px solid #e5e7eb;">
     <div class="card-body p-4">
         <!-- Period Selection Row -->
         <div class="row g-3 mb-4">
@@ -414,8 +414,8 @@
                             </td>
                             <td class="py-3 px-4 border-0 text-center">
                                 <input type="number" 
-                                       class="form-control form-control-sm border-0 shadow-sm text-center fw-bold" 
-                                       style="border-radius: 8px; background-color: ${!isPeriodOpen ? '#f8f9fa' : '#fff'}; color: ${!isPeriodOpen ? '#6c757d' : '#28a745'};"
+                                       class="form-control form-control-sm border shadow-sm text-center fw-bold" 
+                                       style="border-radius: 8px; background-color: ${!isPeriodOpen ? '#f3f4f6' : '#ffffff'}; color: ${!isPeriodOpen ? '#6b7280' : '#111827'}; border-color: ${!isPeriodOpen ? '#d1d5db' : '#059669'};"
                                        value="${targetsMap[key] || ''}" 
                                        ${!isPeriodOpen ? 'disabled' : ''}
                                        placeholder="${!isPeriodOpen ? 'Closed' : 'Enter amount'}"

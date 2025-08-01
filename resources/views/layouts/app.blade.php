@@ -15,21 +15,47 @@
     
     <style>
         :root {
-            --primary-color: #4f46e5;
-            --primary-dark: #3730a3;
-            --secondary-color: #64748b;
-            --success-color: #10b981;
-            --warning-color: #f59e0b;
-            --danger-color: #ef4444;
-            --info-color: #06b6d4;
-            --light-bg: #f8fafc;
-            --dark-bg: #1e293b;
-            --border-color: #e2e8f0;
-            --text-primary: #1e293b;
-            --text-secondary: #64748b;
-            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+            /* High contrast, accessible colors */
+            --primary-color: #2563eb;
+            --primary-dark: #1d4ed8;
+            --primary-light: #3b82f6;
+            --secondary-color: #4b5563;
+            --success-color: #059669;
+            --warning-color: #d97706;
+            --danger-color: #dc2626;
+            --info-color: #0891b2;
+            
+            /* Improved background colors */
+            --light-bg: #ffffff;
+            --light-bg-secondary: #f9fafb;
+            --dark-bg: #111827;
+            --dark-bg-secondary: #1f2937;
+            
+            /* Better text contrast */
+            --text-primary: #111827;
+            --text-secondary: #374151;
+            --text-muted: #6b7280;
+            --text-light: #9ca3af;
+            
+            /* Enhanced borders and dividers */
+            --border-color: #d1d5db;
+            --border-light: #e5e7eb;
+            --border-dark: #9ca3af;
+            
+            /* Improved shadows */
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.1);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.15), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.2), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+            
+            /* Status colors with better contrast */
+            --success-bg: #ecfdf5;
+            --success-text: #065f46;
+            --warning-bg: #fef3c7;
+            --warning-text: #92400e;
+            --danger-bg: #fef2f2;
+            --danger-text: #991b1b;
+            --info-bg: #f0f9ff;
+            --info-text: #1e40af;
         }
 
         * {
@@ -38,10 +64,11 @@
 
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background-color: var(--light-bg);
+            background-color: var(--light-bg-secondary);
             color: var(--text-primary);
             line-height: 1.6;
             font-weight: 400;
+            letter-spacing: -0.01em;
         }
 
         /* Sidebar Styles */
@@ -345,6 +372,176 @@
 
         .sidebar-overlay.show {
             display: block;
+        }
+
+        /* Enhanced Readability & Accessibility */
+        .text-muted {
+            color: var(--text-muted) !important;
+        }
+
+        .text-secondary {
+            color: var(--text-secondary) !important;
+        }
+
+        /* High contrast badges */
+        .badge.bg-primary {
+            background-color: var(--primary-color) !important;
+            color: white !important;
+        }
+
+        .badge.bg-success {
+            background-color: var(--success-color) !important;
+            color: white !important;
+        }
+
+        .badge.bg-warning {
+            background-color: var(--warning-color) !important;
+            color: white !important;
+        }
+
+        .badge.bg-danger {
+            background-color: var(--danger-color) !important;
+            color: white !important;
+        }
+
+        .badge.bg-info {
+            background-color: var(--info-color) !important;
+            color: white !important;
+        }
+
+        /* Better contrast for light badge variants */
+        .badge.bg-primary.bg-opacity-10 {
+            background-color: var(--info-bg) !important;
+            color: var(--info-text) !important;
+            border: 1px solid var(--border-light);
+        }
+
+        .badge.bg-success.bg-opacity-10 {
+            background-color: var(--success-bg) !important;
+            color: var(--success-text) !important;
+            border: 1px solid var(--border-light);
+        }
+
+        .badge.bg-warning.bg-opacity-10 {
+            background-color: var(--warning-bg) !important;
+            color: var(--warning-text) !important;
+            border: 1px solid var(--border-light);
+        }
+
+        .badge.bg-danger.bg-opacity-10 {
+            background-color: var(--danger-bg) !important;
+            color: var(--danger-text) !important;
+            border: 1px solid var(--border-light);
+        }
+
+        .badge.bg-info.bg-opacity-10 {
+            background-color: var(--info-bg) !important;
+            color: var(--info-text) !important;
+            border: 1px solid var(--border-light);
+        }
+
+        /* Enhanced table readability */
+        .table {
+            font-size: 0.95rem;
+        }
+
+        .table th {
+            color: var(--text-primary);
+            font-weight: 600;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        .table td {
+            color: var(--text-secondary);
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        /* Better button contrast */
+        .btn-primary {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+            color: white;
+            font-weight: 500;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-dark);
+            border-color: var(--primary-dark);
+        }
+
+        .btn-success {
+            background-color: var(--success-color);
+            border-color: var(--success-color);
+            color: white;
+            font-weight: 500;
+        }
+
+        .btn-outline-primary {
+            color: var(--primary-color);
+            border-color: var(--primary-color);
+            font-weight: 500;
+        }
+
+        .btn-outline-primary:hover {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+            color: white;
+        }
+
+        /* Enhanced form input readability */
+        .form-control, .form-select {
+            color: var(--text-primary);
+            background-color: var(--light-bg);
+            border: 1px solid var(--border-color);
+        }
+
+        .form-control:focus, .form-select:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+            color: var(--text-primary);
+        }
+
+        /* Better alert readability */
+        .alert-success {
+            background-color: var(--success-bg);
+            color: var(--success-text);
+            border: 1px solid #a7f3d0;
+        }
+
+        .alert-danger {
+            background-color: var(--danger-bg);
+            color: var(--danger-text);
+            border: 1px solid #fca5a5;
+        }
+
+        .alert-warning {
+            background-color: var(--warning-bg);
+            color: var(--warning-text);
+            border: 1px solid #fcd34d;
+        }
+
+        .alert-info {
+            background-color: var(--info-bg);
+            color: var(--info-text);
+            border: 1px solid #93c5fd;
+        }
+
+        /* Improved card readability */
+        .card {
+            background-color: var(--light-bg);
+            border: 1px solid var(--border-light);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .card-header {
+            background-color: var(--light-bg);
+            border-bottom: 1px solid var(--border-light);
+            color: var(--text-primary);
+        }
+
+        /* Enhanced gradient readability */
+        .table thead {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%) !important;
         }
     </style>
     

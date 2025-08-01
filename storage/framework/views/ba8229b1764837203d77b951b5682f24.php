@@ -373,6 +373,7 @@
         
         document.getElementById("matrix-loading").style.display = "block";
         document.getElementById("matrix-container").style.display = "none";
+        document.getElementById("matrix-empty").style.display = "none";
 
         const params = new URLSearchParams(getCurrentFilters());
         try {
@@ -455,6 +456,9 @@
                 }
             });
         });
+        
+        // Hide empty state and show matrix
+        document.getElementById("matrix-empty").style.display = "none";
         document.getElementById("matrix-container").style.display = "block";
         isMatrixLoaded = true;
     }

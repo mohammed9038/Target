@@ -610,10 +610,6 @@
                         <i class="bi bi-target"></i><?php echo e(__('Targets')); ?>
 
                     </a>
-                    <a class="nav-link <?php echo e(request()->routeIs('reports.*') ? 'active' : ''); ?>" href="<?php echo e(route('reports.index')); ?>">
-                        <i class="bi bi-graph-up"></i><?php echo e(__('Reports')); ?>
-
-                    </a>
                 </div>
                 
                 <div class="nav-section">

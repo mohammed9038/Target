@@ -2,7 +2,6 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
-use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\RegionController;
 use App\Http\Controllers\ChannelController;
 use App\Http\Controllers\SupplierController;
@@ -18,6 +17,9 @@ use App\Http\Controllers\Api\V1\DependentController as ApiDependentController;
 use App\Http\Controllers\Api\V1\PeriodController as ApiPeriodController;
 
 Route::get('/', function () {
+    if (auth()->check()) {
+        return redirect()->route('dashboard');
+    }
     return redirect()->route('login');
 });
 
@@ -111,8 +113,8 @@ Route::get('/debug-users', function() {
 
 // Protected routes
 Route::middleware(['auth'])->group(function () {
-    // Dashboard
-    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    // Dashboard (now using reports page)
+    Route::get('/dashboard', [ReportController::class, 'index'])->name('dashboard');
     
     // Regions
     Route::resource('regions', RegionController::class);
@@ -135,9 +137,6 @@ Route::middleware(['auth'])->group(function () {
     // Targets
     Route::resource('targets', TargetController::class);
     Route::get('targets/create', [TargetController::class, 'create'])->name('targets.create');
-    
-    // Reports
-    Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
     
     // Users (admin only)
     Route::middleware(['admin'])->group(function () {

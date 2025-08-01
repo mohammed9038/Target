@@ -1,26 +1,31 @@
 @extends('layouts.app')
 
-@section('title', __('Reports'))
+@section('title', __('Dashboard'))
 
 @section('content')
 <div class="d-flex justify-content-between align-items-start mb-4">
     <div>
-        <h1 class="h2 mb-1">{{ __('Reports') }}</h1>
-        <p class="text-muted mb-0">{{ __('View and analyze sales target reports') }}</p>
+        <h1 class="h2 mb-1">{{ __('Dashboard') }}</h1>
+        <p class="text-muted mb-0">{{ __('Welcome back,') }} <strong>{{ auth()->user()->username }}</strong> - {{ __('View and analyze your sales target data') }}</p>
     </div>
     <div class="d-flex gap-2" style="margin-top: 0.5rem;">
+        <div class="text-end me-3">
+            <div class="text-muted small">{{ __('Last Login') }}</div>
+            <div class="fw-medium">{{ now()->format('M d, Y H:i') }}</div>
+        </div>
         <span class="badge bg-info-subtle text-info px-3 py-2">
             <i class="bi bi-graph-up me-1"></i>{{ __('Analytics Dashboard') }}
         </span>
     </div>
 </div>
 
-<!-- Filters -->
+<!-- Dashboard Filters -->
 <div class="card mb-4">
     <div class="card-header">
         <h5 class="mb-0">
-            <i class="bi bi-funnel me-2"></i>{{ __('Report Filters') }}
+            <i class="bi bi-sliders me-2"></i>{{ __('Dashboard Filters') }}
         </h5>
+        <small class="text-muted">{{ __('Filter your dashboard data by period, location, and classification') }}</small>
     </div>
     <div class="card-body">
         <div class="row g-3">
@@ -155,34 +160,36 @@
             <!-- Action Buttons -->
             <div class="col-md-7 d-flex align-items-end gap-2">
                 <button class="btn btn-primary btn-sm" onclick="loadReports()">
-                    <i class="bi bi-search me-1"></i>{{ __('Generate Report') }}
+                    <i class="bi bi-arrow-clockwise me-1"></i>{{ __('Refresh Dashboard') }}
                 </button>
                 <button class="btn btn-outline-secondary btn-sm" onclick="clearFilters()">
                     <i class="bi bi-x-circle me-1"></i>{{ __('Clear Filters') }}
                 </button>
                 <button class="btn btn-success btn-sm" onclick="exportReport()">
-                    <i class="bi bi-file-earmark-spreadsheet me-1"></i>{{ __('Export Excel') }}
+                    <i class="bi bi-download me-1"></i>{{ __('Export Data') }}
                 </button>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Summary Cards -->
+<!-- Dashboard Summary Cards -->
 <div class="row g-4 mb-4">
     <div class="col-xl-3 col-md-6">
-        <div class="card">
+        <div class="card h-100">
             <div class="card-body">
                 <div class="d-flex align-items-center">
                     <div class="flex-shrink-0">
                         <div class="bg-primary bg-opacity-10 p-3 rounded">
-                            <i class="bi bi-currency-dollar text-primary fs-2"></i>
+                            <i class="bi bi-target text-primary fs-2"></i>
                         </div>
                     </div>
                     <div class="flex-grow-1 ms-3">
                         <h6 class="card-title text-muted mb-1">{{ __('Total Targets') }}</h6>
                         <h3 class="mb-0" id="totalTargets">$0</h3>
-                        <small class="text-muted">{{ __('All Periods') }}</small>
+                        <small class="text-success">
+                            <i class="bi bi-arrow-up"></i> {{ __('Current Period') }}
+                        </small>
                     </div>
                 </div>
             </div>
@@ -190,18 +197,20 @@
     </div>
     
     <div class="col-xl-3 col-md-6">
-        <div class="card">
+        <div class="card h-100">
             <div class="card-body">
                 <div class="d-flex align-items-center">
                     <div class="flex-shrink-0">
                         <div class="bg-success bg-opacity-10 p-3 rounded">
-                            <i class="bi bi-check-circle text-success fs-2"></i>
+                            <i class="bi bi-calendar-check text-success fs-2"></i>
                         </div>
                     </div>
                     <div class="flex-grow-1 ms-3">
-                        <h6 class="card-title text-muted mb-1">{{ __('Achieved') }}</h6>
+                        <h6 class="card-title text-muted mb-1">{{ __('Active Targets') }}</h6>
                         <h3 class="mb-0" id="achievedTargets">$0</h3>
-                        <small class="text-success">{{ __('100%') }}</small>
+                        <small class="text-info">
+                            <i class="bi bi-clock"></i> {{ __('This Month') }}
+                        </small>
                     </div>
                 </div>
             </div>
@@ -209,18 +218,20 @@
     </div>
     
     <div class="col-xl-3 col-md-6">
-        <div class="card">
+        <div class="card h-100">
             <div class="card-body">
                 <div class="d-flex align-items-center">
                     <div class="flex-shrink-0">
                         <div class="bg-warning bg-opacity-10 p-3 rounded">
-                            <i class="bi bi-hourglass-split text-warning fs-2"></i>
+                            <i class="bi bi-building text-warning fs-2"></i>
                         </div>
                     </div>
                     <div class="flex-grow-1 ms-3">
-                        <h6 class="card-title text-muted mb-1">{{ __('Pending') }}</h6>
-                        <h3 class="mb-0" id="pendingTargets">$0</h3>
-                        <small class="text-warning">{{ __('0%') }}</small>
+                        <h6 class="card-title text-muted mb-1">{{ __('Suppliers') }}</h6>
+                        <h3 class="mb-0" id="pendingTargets">0</h3>
+                        <small class="text-muted">
+                            <i class="bi bi-check-circle"></i> {{ __('Active') }}
+                        </small>
                     </div>
                 </div>
             </div>
@@ -247,19 +258,24 @@
     </div>
 </div>
 
-<!-- Reports Table -->
+<!-- Dashboard Data Table -->
 <div class="card">
-    <div class="card-header">
+    <div class="card-header d-flex justify-content-between align-items-center">
         <h5 class="mb-0">
-            <i class="bi bi-table me-2"></i>{{ __('Detailed Report') }}
+            <i class="bi bi-table me-2"></i>{{ __('Targets Overview') }}
         </h5>
+        <div class="d-flex gap-2">
+            <a href="{{ route('targets.index') }}" class="btn btn-sm btn-outline-primary">
+                <i class="bi bi-plus-circle me-1"></i>{{ __('Manage Targets') }}
+            </a>
+        </div>
     </div>
     <div class="card-body">
         <div id="reportsContent">
             <div class="text-center py-5">
-                <i class="bi bi-graph-up text-muted" style="font-size: 3rem;"></i>
-                <h5 class="mt-3">{{ __('Generate Report') }}</h5>
-                <p class="text-muted">{{ __('Select filters and click "Generate Report" to view data') }}</p>
+                <i class="bi bi-speedometer2 text-muted" style="font-size: 3rem;"></i>
+                <h5 class="mt-3">{{ __('Dashboard Ready') }}</h5>
+                <p class="text-muted">{{ __('Apply filters and click "Refresh Dashboard" to view your data') }}</p>
             </div>
         </div>
     </div>

@@ -601,9 +601,6 @@
                     <a class="nav-link {{ request()->routeIs('targets.*') ? 'active' : '' }}" href="{{ route('targets.index') }}">
                         <i class="bi bi-target"></i>{{ __('Targets') }}
                     </a>
-                    <a class="nav-link {{ request()->routeIs('reports.*') ? 'active' : '' }}" href="{{ route('reports.index') }}">
-                        <i class="bi bi-graph-up"></i>{{ __('Reports') }}
-                    </a>
                 </div>
                 
                 <div class="nav-section">

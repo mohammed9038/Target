@@ -125,12 +125,32 @@ class TargetController extends Controller
             ], 422);
         }
 
-        // Apply user scope for managers
-        if ($user->isManager()) {
-            if ($request->region_id != $user->region_id || $request->channel_id != $user->channel_id) {
+        // Apply user scope for non-admin users
+        if (!$user->isAdmin()) {
+            $scope = $user->scope();
+            
+            // Check region permission
+            if (!empty($scope['region_ids']) && !in_array($request->region_id, $scope['region_ids'])) {
                 return response()->json([
-                    'message' => 'You can only create targets within your assigned region and channel'
+                    'message' => 'You can only create targets within your assigned regions'
                 ], 403);
+            }
+            
+            // Check channel permission
+            if (!empty($scope['channel_ids']) && !in_array($request->channel_id, $scope['channel_ids'])) {
+                return response()->json([
+                    'message' => 'You can only create targets within your assigned channels'
+                ], 403);
+            }
+            
+            // Check classification permission
+            if (isset($scope['classification'])) {
+                $salesman = \App\Models\Salesman::find($request->salesman_id);
+                if ($salesman && $salesman->classification !== $scope['classification'] && $scope['classification'] !== 'both') {
+                    return response()->json([
+                        'message' => 'You can only create targets for your assigned classification'
+                    ], 403);
+                }
             }
         }
 
@@ -160,12 +180,32 @@ class TargetController extends Controller
     {
         $user = Auth::user();
         
-        // Check scope for managers
-        if ($user->isManager()) {
-            if ($target->region_id != $user->region_id || $target->channel_id != $user->channel_id) {
+        // Check scope for non-admin users
+        if (!$user->isAdmin()) {
+            $scope = $user->scope();
+            
+            // Check region permission
+            if (!empty($scope['region_ids']) && !in_array($target->region_id, $scope['region_ids'])) {
                 return response()->json([
-                    'message' => 'Access denied'
+                    'message' => 'Access denied - not your assigned region'
                 ], 403);
+            }
+            
+            // Check channel permission
+            if (!empty($scope['channel_ids']) && !in_array($target->channel_id, $scope['channel_ids'])) {
+                return response()->json([
+                    'message' => 'Access denied - not your assigned channel'
+                ], 403);
+            }
+            
+            // Check classification permission
+            if (isset($scope['classification'])) {
+                $salesman = $target->salesman;
+                if ($salesman && $salesman->classification !== $scope['classification'] && $scope['classification'] !== 'both') {
+                    return response()->json([
+                        'message' => 'Access denied - not your assigned classification'
+                    ], 403);
+                }
             }
         }
 
@@ -178,12 +218,32 @@ class TargetController extends Controller
     {
         $user = Auth::user();
         
-        // Check scope for managers
-        if ($user->isManager()) {
-            if ($target->region_id != $user->region_id || $target->channel_id != $user->channel_id) {
+        // Check scope for non-admin users
+        if (!$user->isAdmin()) {
+            $scope = $user->scope();
+            
+            // Check region permission
+            if (!empty($scope['region_ids']) && !in_array($target->region_id, $scope['region_ids'])) {
                 return response()->json([
-                    'message' => 'Access denied'
+                    'message' => 'Access denied - not your assigned region'
                 ], 403);
+            }
+            
+            // Check channel permission
+            if (!empty($scope['channel_ids']) && !in_array($target->channel_id, $scope['channel_ids'])) {
+                return response()->json([
+                    'message' => 'Access denied - not your assigned channel'
+                ], 403);
+            }
+            
+            // Check classification permission
+            if (isset($scope['classification'])) {
+                $salesman = $target->salesman;
+                if ($salesman && $salesman->classification !== $scope['classification'] && $scope['classification'] !== 'both') {
+                    return response()->json([
+                        'message' => 'Access denied - not your assigned classification'
+                    ], 403);
+                }
             }
         }
 
@@ -204,12 +264,32 @@ class TargetController extends Controller
     {
         $user = Auth::user();
         
-        // Check scope for managers
-        if ($user->isManager()) {
-            if ($target->region_id != $user->region_id || $target->channel_id != $user->channel_id) {
+        // Check scope for non-admin users
+        if (!$user->isAdmin()) {
+            $scope = $user->scope();
+            
+            // Check region permission
+            if (!empty($scope['region_ids']) && !in_array($target->region_id, $scope['region_ids'])) {
                 return response()->json([
-                    'message' => 'Access denied'
+                    'message' => 'Access denied - not your assigned region'
                 ], 403);
+            }
+            
+            // Check channel permission
+            if (!empty($scope['channel_ids']) && !in_array($target->channel_id, $scope['channel_ids'])) {
+                return response()->json([
+                    'message' => 'Access denied - not your assigned channel'
+                ], 403);
+            }
+            
+            // Check classification permission
+            if (isset($scope['classification'])) {
+                $salesman = $target->salesman;
+                if ($salesman && $salesman->classification !== $scope['classification'] && $scope['classification'] !== 'both') {
+                    return response()->json([
+                        'message' => 'Access denied - not your assigned classification'
+                    ], 403);
+                }
             }
         }
 
@@ -243,11 +323,29 @@ class TargetController extends Controller
 
         foreach ($request->targets as $index => $targetData) {
             try {
-                // Apply user scope for managers
-                if ($user->isManager()) {
-                    if ($targetData['region_id'] != $user->region_id || $targetData['channel_id'] != $user->channel_id) {
-                        $errors[] = "Row " . ($index + 1) . ": Access denied for this region/channel";
+                // Apply user scope for non-admin users
+                if (!$user->isAdmin()) {
+                    $scope = $user->scope();
+                    
+                    // Check region permission
+                    if (!empty($scope['region_ids']) && !in_array($targetData['region_id'], $scope['region_ids'])) {
+                        $errors[] = "Row " . ($index + 1) . ": Access denied - not your assigned region";
                         continue;
+                    }
+                    
+                    // Check channel permission
+                    if (!empty($scope['channel_ids']) && !in_array($targetData['channel_id'], $scope['channel_ids'])) {
+                        $errors[] = "Row " . ($index + 1) . ": Access denied - not your assigned channel";
+                        continue;
+                    }
+                    
+                    // Check classification permission
+                    if (isset($scope['classification'])) {
+                        $salesman = \App\Models\Salesman::find($targetData['salesman_id']);
+                        if ($salesman && $salesman->classification !== $scope['classification'] && $scope['classification'] !== 'both') {
+                            $errors[] = "Row " . ($index + 1) . ": Access denied - not your assigned classification";
+                            continue;
+                        }
                     }
                 }
 
@@ -305,6 +403,12 @@ class TargetController extends Controller
 
         $user = Auth::user();
 
+        // Apply user scope restrictions for non-admin users
+        $userScope = null;
+        if (!$user->isAdmin()) {
+            $userScope = $user->scope();
+        }
+
         // Check period status
         $period = ActiveMonthYear::where('year', $request->year)
                                 ->where('month', $request->month)
@@ -328,6 +432,24 @@ class TargetController extends Controller
             $salesmenQuery->where('classification', $request->classification);
         }
 
+        // Apply user scope filters for non-admin users
+        if ($userScope) {
+            // Filter by user's assigned regions
+            if (!empty($userScope['region_ids'])) {
+                $salesmenQuery->whereIn('region_id', $userScope['region_ids']);
+            }
+            
+            // Filter by user's assigned channels
+            if (!empty($userScope['channel_ids'])) {
+                $salesmenQuery->whereIn('channel_id', $userScope['channel_ids']);
+            }
+            
+            // Filter by user's assigned classification
+            if (isset($userScope['classification']) && $userScope['classification'] !== 'both') {
+                $salesmenQuery->where('classification', $userScope['classification']);
+            }
+        }
+
         // 2. Get Suppliers and Categories with filters
         $suppliersQuery = \DB::table('suppliers')
             ->join('categories', 'suppliers.id', '=', 'categories.supplier_id')
@@ -349,6 +471,13 @@ class TargetController extends Controller
             $suppliersQuery->where('suppliers.classification', $request->classification);
         }
 
+        // Apply user scope filters to suppliers for non-admin users
+        if ($userScope) {
+            // Filter by user's assigned classification
+            if (isset($userScope['classification']) && $userScope['classification'] !== 'both') {
+                $suppliersQuery->where('suppliers.classification', $userScope['classification']);
+            }
+        }
 
         // 3. Get existing targets for the given filters
         $targetsQuery = SalesTarget::where('year', $request->year)->where('month', $request->month);
@@ -362,6 +491,28 @@ class TargetController extends Controller
             $targetsQuery->where('category_id', $request->category_id);
         }
 
+        // Apply user scope filters to targets for non-admin users
+        if ($userScope) {
+            // Filter targets by user's assigned salesmen (regions/channels/classification)
+            $targetsQuery->whereHas('salesman', function($q) use ($userScope) {
+                if (!empty($userScope['region_ids'])) {
+                    $q->whereIn('region_id', $userScope['region_ids']);
+                }
+                if (!empty($userScope['channel_ids'])) {
+                    $q->whereIn('channel_id', $userScope['channel_ids']);
+                }
+                if (isset($userScope['classification']) && $userScope['classification'] !== 'both') {
+                    $q->where('classification', $userScope['classification']);
+                }
+            });
+
+            // Filter targets by user's assigned supplier classification
+            if (isset($userScope['classification']) && $userScope['classification'] !== 'both') {
+                $targetsQuery->whereHas('supplier', function($q) use ($userScope) {
+                    $q->where('classification', $userScope['classification']);
+                });
+            }
+        }
 
         return response()->json([
             'data' => [
@@ -416,15 +567,31 @@ class TargetController extends Controller
                 // Get salesman details for scope checking
                 $salesman = \App\Models\Salesman::find($targetData['salesman_id']);
                 
-                // Apply user scope for managers
-                if ($user->isManager()) {
-                    if ($salesman->region_id != $user->region_id || $salesman->channel_id != $user->channel_id) {
+                // Apply user scope for non-admin users
+                if (!$user->isAdmin()) {
+                    $scope = $user->scope();
+                    
+                    // Check region permission
+                    if (!empty($scope['region_ids']) && !in_array($salesman->region_id, $scope['region_ids'])) {
                         continue; // Skip this target
                     }
                     
-                    // Apply classification filter if specified
-                    if ($user->classification && $user->classification !== 'both') {
-                        if ($salesman->classification !== $user->classification) {
+                    // Check channel permission
+                    if (!empty($scope['channel_ids']) && !in_array($salesman->channel_id, $scope['channel_ids'])) {
+                        continue; // Skip this target
+                    }
+                    
+                    // Check classification permission
+                    if (isset($scope['classification']) && $scope['classification'] !== 'both') {
+                        if ($salesman->classification !== $scope['classification']) {
+                            continue; // Skip this target
+                        }
+                    }
+                    
+                    // Check supplier classification permission
+                    $supplier = \App\Models\Supplier::find($targetData['supplier_id']);
+                    if (isset($scope['classification']) && $scope['classification'] !== 'both') {
+                        if ($supplier && $supplier->classification !== $scope['classification']) {
                             continue; // Skip this target
                         }
                     }
@@ -957,4 +1124,5 @@ class TargetController extends Controller
             ], 500);
         }
     }
+} 
 } 

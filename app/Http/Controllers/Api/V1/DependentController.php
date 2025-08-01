@@ -21,11 +21,11 @@ class DependentController extends Controller
         $user = auth()->user();
         $query = Region::where('is_active', true);
         
-        // Apply user scope for managers
-        if ($user->isManager()) {
-            $regionIds = $user->getRegionIds();
-            if (!empty($regionIds)) {
-                $query->whereIn('id', $regionIds);
+        // Apply user scope for non-admin users
+        if (!$user->isAdmin()) {
+            $scope = $user->scope();
+            if (!empty($scope['region_ids'])) {
+                $query->whereIn('id', $scope['region_ids']);
             }
         }
         
@@ -38,11 +38,11 @@ class DependentController extends Controller
         $user = auth()->user();
         $query = Channel::where('is_active', true);
         
-        // Apply user scope for managers
-        if ($user->isManager()) {
-            $channelIds = $user->getChannelIds();
-            if (!empty($channelIds)) {
-                $query->whereIn('id', $channelIds);
+        // Apply user scope for non-admin users
+        if (!$user->isAdmin()) {
+            $scope = $user->scope();
+            if (!empty($scope['channel_ids'])) {
+                $query->whereIn('id', $scope['channel_ids']);
             }
         }
         
@@ -60,20 +60,19 @@ class DependentController extends Controller
                 $query->where('is_active', true);
             });
 
-        // Apply user scope for managers
-        if ($user->isManager()) {
-            $regionIds = $user->getRegionIds();
-            $channelIds = $user->getChannelIds();
+        // Apply user scope for non-admin users
+        if (!$user->isAdmin()) {
+            $scope = $user->scope();
             
-            if (!empty($regionIds)) {
-                $query->whereIn('region_id', $regionIds);
+            if (!empty($scope['region_ids'])) {
+                $query->whereIn('region_id', $scope['region_ids']);
             }
-            if (!empty($channelIds)) {
-                $query->whereIn('channel_id', $channelIds);
+            if (!empty($scope['channel_ids'])) {
+                $query->whereIn('channel_id', $scope['channel_ids']);
             }
             // Apply classification filter if specified
-            if ($user->classification && $user->classification !== 'both') {
-                $query->where('classification', $user->classification);
+            if (isset($scope['classification']) && $scope['classification'] !== 'both') {
+                $query->where('classification', $scope['classification']);
             }
         }
 
@@ -86,9 +85,12 @@ class DependentController extends Controller
         $user = auth()->user();
         $query = Supplier::orderBy('name');
         
-        // For managers, filter suppliers by classification that matches their permission
-        if ($user->isManager() && $user->classification && $user->classification !== 'both') {
-            $query->where('classification', $user->classification);
+        // For non-admin users, filter suppliers by classification that matches their permission
+        if (!$user->isAdmin()) {
+            $scope = $user->scope();
+            if (isset($scope['classification']) && $scope['classification'] !== 'both') {
+                $query->where('classification', $scope['classification']);
+            }
         }
         
         $suppliers = $query->get();
@@ -100,11 +102,14 @@ class DependentController extends Controller
         $user = auth()->user();
         $query = Category::with('supplier')->orderBy('name');
         
-        // For managers, only show categories that belong to suppliers they can access
-        if ($user->isManager() && $user->classification && $user->classification !== 'both') {
-            $query->whereHas('supplier', function ($q) use ($user) {
-                $q->where('classification', $user->classification);
-            });
+        // For non-admin users, only show categories that belong to suppliers they can access
+        if (!$user->isAdmin()) {
+            $scope = $user->scope();
+            if (isset($scope['classification']) && $scope['classification'] !== 'both') {
+                $query->whereHas('supplier', function ($q) use ($scope) {
+                    $q->where('classification', $scope['classification']);
+                });
+            }
         }
         
         $categories = $query->get();

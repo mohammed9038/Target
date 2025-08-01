@@ -145,17 +145,52 @@ class DatabaseSeeder extends Seeder
             ]
         );
 
-        // Create manager user
+        // Create manager user with food classification
         $manager = User::updateOrCreate(
             ['username' => 'manager'],
             [
                 'password' => Hash::make('password'),
                 'role' => 'manager',
+                'classification' => 'food',
             ]
         );
 
         // Associate manager with regions and channels using pivot tables
+        $manager->regions()->detach(); // Clear existing associations first
+        $manager->channels()->detach();
         $manager->regions()->attach($region1->id);
         $manager->channels()->attach($channel1->id);
+
+        // Create manager user for non-food classification
+        $manager2 = User::updateOrCreate(
+            ['username' => 'manager2'],
+            [
+                'password' => Hash::make('password'),
+                'role' => 'manager',
+                'classification' => 'non_food',
+            ]
+        );
+
+        // Associate manager2 with different regions and channels
+        $manager2->regions()->detach(); // Clear existing associations first
+        $manager2->channels()->detach();
+        $manager2->regions()->attach($region2->id);
+        $manager2->channels()->attach($channel2->id);
+
+        // Create a limited manager with access to both classifications
+        $manager3 = User::updateOrCreate(
+            ['username' => 'manager3'],
+            [
+                'password' => Hash::make('password'),
+                'role' => 'manager',
+                'classification' => 'both',
+            ]
+        );
+
+        // Associate manager3 with multiple regions and channels
+        $manager3->regions()->detach(); // Clear existing associations first
+        $manager3->channels()->detach();
+        $manager3->regions()->attach([$region1->id, $region2->id]);
+        $manager3->channels()->attach([$channel1->id, $channel2->id]);
     }
 } 

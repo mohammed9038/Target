@@ -3,13 +3,20 @@
 <?php $__env->startSection('title', __('Salesmen')); ?>
 
 <?php $__env->startSection('content'); ?>
+<!-- Modern Page Header -->
 <div class="d-flex justify-content-between align-items-start mb-4">
     <div>
-        <h1 class="h2 mb-1"><?php echo e(__('Salesmen')); ?></h1>
-        <p class="text-muted mb-0"><?php echo e(__('Manage sales team members and assignments')); ?></p>
+        <h1 class="h2 mb-2 fw-bold d-flex align-items-center">
+            <div class="p-2 rounded-circle bg-primary bg-opacity-10 me-3">
+                <i class="bi bi-people text-primary"></i>
+            </div>
+            <?php echo e(__('Salesmen')); ?>
+
+        </h1>
+        <p class="text-muted mb-0 ms-5 ps-2"><?php echo e(__('Manage sales team members and assignments')); ?></p>
     </div>
     <div class="d-flex gap-2" style="margin-top: 0.5rem;">
-        <a href="<?php echo e(route('salesmen.create')); ?>" class="btn btn-primary">
+        <a href="<?php echo e(route('salesmen.create')); ?>" class="btn btn-primary shadow-sm" style="border-radius: 8px;">
             <i class="bi bi-plus-circle me-2"></i><?php echo e(__('Add Salesman')); ?>
 
         </a>
@@ -42,24 +49,30 @@
     </div>
 <?php endif; ?>
 
-<div class="card">
-    <div class="card-header">
-        <div class="d-flex justify-content-between align-items-center">
-            <div class="d-flex align-items-center">
-                <h5 class="mb-0 me-3">
-                    <i class="bi bi-people me-2"></i><?php echo e(__('Salesmen List')); ?>
+<!-- Modern Salesmen Card -->
+<div class="card border-0 shadow-sm" style="border-radius: 12px;">
+    <div class="card-header border-0 bg-white d-flex justify-content-between align-items-center" style="border-radius: 12px 12px 0 0;">
+        <div class="d-flex align-items-center">
+            <h5 class="mb-0 me-3 fw-semibold d-flex align-items-center">
+                <div class="p-2 rounded-circle bg-success bg-opacity-10 me-3">
+                    <i class="bi bi-people text-success"></i>
+                </div>
+                <?php echo e(__('Salesmen List')); ?>
 
-                </h5>
-                <small class="text-muted">
-                    <?php echo e(count($salesmen)); ?> <?php echo e(__('records')); ?>
+            </h5>
+            <span class="badge bg-primary bg-opacity-10 text-primary px-3 py-2">
+                <?php echo e(count($salesmen)); ?> <?php echo e(__('records')); ?>
 
-                </small>
-            </div>
-            <div class="input-group" style="width: 250px;">
-                <span class="input-group-text bg-light border-end-0">
+            </span>
+        </div>
+        <div class="d-flex align-items-center gap-3">
+            <div class="input-group shadow-sm" style="width: 280px; border-radius: 8px;">
+                <span class="input-group-text bg-light border-0" style="border-radius: 8px 0 0 8px;">
                     <i class="bi bi-search text-muted"></i>
                 </span>
-                <input type="text" class="form-control border-start-0" id="searchInput" placeholder="<?php echo e(__('Search salesmen...')); ?>">
+                <input type="text" class="form-control border-0" id="searchInput" 
+                       placeholder="<?php echo e(__('Search salesmen...')); ?>" 
+                       style="border-radius: 0 8px 8px 0; box-shadow: none;">
             </div>
         </div>
     </div>

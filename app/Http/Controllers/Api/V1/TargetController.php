@@ -446,7 +446,10 @@ class TargetController extends Controller
             
             // Filter by user's assigned classification
             if (isset($userScope['classification']) && $userScope['classification'] !== 'both') {
-                $salesmenQuery->where('classification', $userScope['classification']);
+                $salesmenQuery->where(function($q) use ($userScope) {
+                    $q->where('classification', $userScope['classification'])
+                      ->orWhere('classification', 'both');
+                });
             }
         }
 
@@ -502,7 +505,10 @@ class TargetController extends Controller
                     $q->whereIn('channel_id', $userScope['channel_ids']);
                 }
                 if (isset($userScope['classification']) && $userScope['classification'] !== 'both') {
-                    $q->where('classification', $userScope['classification']);
+                    $q->where(function($subQ) use ($userScope) {
+                        $subQ->where('classification', $userScope['classification'])
+                             ->orWhere('classification', 'both');
+                    });
                 }
             });
 
@@ -583,7 +589,7 @@ class TargetController extends Controller
                     
                     // Check classification permission
                     if (isset($scope['classification']) && $scope['classification'] !== 'both') {
-                        if ($salesman->classification !== $scope['classification']) {
+                        if ($salesman->classification !== $scope['classification'] && $salesman->classification !== 'both') {
                             continue; // Skip this target
                         }
                     }

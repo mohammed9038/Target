@@ -87,7 +87,10 @@ class DependentController extends Controller
             }
             // Apply classification filter if specified
             if (isset($scope['classification']) && $scope['classification'] !== 'both') {
-                $query->where('classification', $scope['classification']);
+                $query->where(function($q) use ($scope) {
+                    $q->where('classification', $scope['classification'])
+                      ->orWhere('classification', 'both');
+                });
             }
         }
 

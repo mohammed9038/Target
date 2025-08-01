@@ -2,7 +2,28 @@
 
 ## 📋 **Version Control & Deployment Log**
 
-### 🚀 **v1.2-env-fix (Latest)** - August 1, 2025
+### 🔧 **v1.4-api-fix (Latest)** - August 1, 2025
+**🔗 Frontend API Integration Fix**
+
+**Issues Fixed:**
+- ✅ **Frontend calling deleted api-handler.php**
+  - Updated master data loading to use Laravel `/api/deps/*` endpoints
+  - Updated target matrix loading to use `/api/targets/matrix` endpoint
+  - Removed deprecated `action=matrix` parameter
+  - Fixed "Failed to load target matrix" error
+
+**Changes:**
+- Master data calls: `/api-handler.php?action=deps&type=X` → `/api/deps/X`
+- Target matrix: `/api-handler.php?action=matrix` → `/api/targets/matrix`
+- Proper Laravel route authentication and CSRF protection
+- Cleaner URL structure without legacy query actions
+
+**Files Changed:**
+- `resources/views/targets/index.blade.php` (API endpoint updates)
+
+---
+
+### 🚀 **v1.2-env-fix** - August 1, 2025
 **🔧 Environment Configuration Fix**
 
 **Issues Fixed:**

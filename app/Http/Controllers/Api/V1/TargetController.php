@@ -1125,4 +1125,3 @@ class TargetController extends Controller
         }
     }
 } 
-} 

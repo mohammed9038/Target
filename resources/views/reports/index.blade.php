@@ -173,90 +173,7 @@
     </div>
 </div>
 
-<!-- Dashboard Summary Cards -->
-<div class="row g-4 mb-4">
-    <div class="col-xl-3 col-md-6">
-        <div class="card h-100">
-            <div class="card-body">
-                <div class="d-flex align-items-center">
-                    <div class="flex-shrink-0">
-                        <div class="bg-primary bg-opacity-10 p-3 rounded">
-                            <i class="bi bi-target text-primary fs-2"></i>
-                        </div>
-                    </div>
-                    <div class="flex-grow-1 ms-3">
-                        <h6 class="card-title text-muted mb-1">{{ __('Total Targets') }}</h6>
-                        <h3 class="mb-0" id="totalTargets">$0</h3>
-                        <small class="text-success">
-                            <i class="bi bi-arrow-up"></i> {{ __('Current Period') }}
-                        </small>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-xl-3 col-md-6">
-        <div class="card h-100">
-            <div class="card-body">
-                <div class="d-flex align-items-center">
-                    <div class="flex-shrink-0">
-                        <div class="bg-success bg-opacity-10 p-3 rounded">
-                            <i class="bi bi-calendar-check text-success fs-2"></i>
-                        </div>
-                    </div>
-                    <div class="flex-grow-1 ms-3">
-                        <h6 class="card-title text-muted mb-1">{{ __('Active Targets') }}</h6>
-                        <h3 class="mb-0" id="achievedTargets">$0</h3>
-                        <small class="text-info">
-                            <i class="bi bi-clock"></i> {{ __('This Month') }}
-                        </small>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-xl-3 col-md-6">
-        <div class="card h-100">
-            <div class="card-body">
-                <div class="d-flex align-items-center">
-                    <div class="flex-shrink-0">
-                        <div class="bg-warning bg-opacity-10 p-3 rounded">
-                            <i class="bi bi-building text-warning fs-2"></i>
-                        </div>
-                    </div>
-                    <div class="flex-grow-1 ms-3">
-                        <h6 class="card-title text-muted mb-1">{{ __('Suppliers') }}</h6>
-                        <h3 class="mb-0" id="pendingTargets">0</h3>
-                        <small class="text-muted">
-                            <i class="bi bi-check-circle"></i> {{ __('Active') }}
-                        </small>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-xl-3 col-md-6">
-        <div class="card">
-            <div class="card-body">
-                <div class="d-flex align-items-center">
-                    <div class="flex-shrink-0">
-                        <div class="bg-info bg-opacity-10 p-3 rounded">
-                            <i class="bi bi-people text-info fs-2"></i>
-                        </div>
-                    </div>
-                    <div class="flex-grow-1 ms-3">
-                        <h6 class="card-title text-muted mb-1">{{ __('Active Salesmen') }}</h6>
-                        <h3 class="mb-0" id="activeSalesmen">0</h3>
-                        <small class="text-muted">{{ __('This Period') }}</small>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
+
 
 <!-- Dashboard Data Table -->
 <div class="card">
@@ -285,10 +202,9 @@
 let userInfo = null;
 
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('🎯 REPORTS PAGE LOADED');
+    console.log('🎯 DASHBOARD PAGE LOADED');
     loadUserInfo();
     loadFilters();
-    loadSummary();
 });
 
 async function loadUserInfo() {
@@ -483,40 +399,7 @@ async function loadFilters() {
     }
 }
 
-async function loadSummary() {
-    const fetchOptions = {
-        headers: {
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-        },
-        credentials: 'same-origin'
-    };
 
-    try {
-        const response = await fetch('/api/v1/reports/summary', fetchOptions);
-        if (response.ok) {
-            const data = await response.json();
-            document.getElementById('totalTargets').textContent = `$${(data.total_amount || 0).toLocaleString()}`;
-            document.getElementById('achievedTargets').textContent = `$${(data.total_amount || 0).toLocaleString()}`;
-            document.getElementById('pendingTargets').textContent = '$0';
-            document.getElementById('activeSalesmen').textContent = data.total_targets || '0';
-        } else {
-            // Fallback to default values
-            document.getElementById('totalTargets').textContent = '$0';
-            document.getElementById('achievedTargets').textContent = '$0';
-            document.getElementById('pendingTargets').textContent = '$0';
-            document.getElementById('activeSalesmen').textContent = '0';
-        }
-    } catch (error) {
-        console.error('Error loading summary:', error);
-        // Fallback to default values
-        document.getElementById('totalTargets').textContent = '$0';
-        document.getElementById('achievedTargets').textContent = '$0';
-        document.getElementById('pendingTargets').textContent = '$0';
-        document.getElementById('activeSalesmen').textContent = '0';
-    }
-}
 
 async function loadReports() {
     console.log('📊 Loading reports...');
@@ -813,8 +696,7 @@ function clearFilters() {
     document.getElementById('categoryFilter').value = '';
     document.getElementById('salesmanFilter').value = '';
     
-    // Optionally reload the summary with cleared filters
-    loadSummary();
+    // Filters cleared
 }
 </script>
 @endsection

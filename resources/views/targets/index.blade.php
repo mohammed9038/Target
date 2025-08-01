@@ -207,11 +207,11 @@
     async function loadMasterData() {
         try {
             const [regions, channels, suppliers, categories, salesmen] = await Promise.all([
-                fetch(`/api/v1/deps/regions`).then(res => res.json()),
-                fetch(`/api/v1/deps/channels`).then(res => res.json()),
-                fetch(`/api/v1/deps/suppliers`).then(res => res.json()),
-                fetch(`/api/v1/deps/categories`).then(res => res.json()),
-                fetch(`/api/v1/deps/salesmen`).then(res => res.json())
+                fetch(`/api/deps/regions`).then(res => res.json()),
+                fetch(`/api/deps/channels`).then(res => res.json()),
+                fetch(`/api/deps/suppliers`).then(res => res.json()),
+                fetch(`/api/deps/categories`).then(res => res.json()),
+                fetch(`/api/deps/salesmen`).then(res => res.json())
             ]);
             populateSelect("filter_region", regions.data, "id", "name");
             populateSelect("filter_channel", channels.data, "id", "name");
@@ -256,7 +256,7 @@
 
         const params = new URLSearchParams(getCurrentFilters());
         try {
-            const response = await fetch(`/api/v1/targets/matrix?${params}`);
+            const response = await fetch(`/api/targets/matrix?${params}`);
             if (!response.ok) throw new Error((await response.json()).message || 'Failed to load data.');
             
             const result = await response.json();
@@ -338,7 +338,7 @@
         saveBtn.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Saving...`;
 
         try {
-            const response = await fetch(`/api/v1/targets/bulk-save`, {
+            const response = await fetch(`/api/targets/bulk-save`, {
                 method: 'POST',
                 headers: apiOptions.headers,
                 body: JSON.stringify({
@@ -358,11 +358,177 @@
         }
     }
     
-    // Placeholder functions for export/upload
-    function exportTargets() { showAlert('Export function coming soon!', 'info'); }
-    function showUploadModal() { new bootstrap.Modal(document.getElementById('uploadModal')).show(); }
-    function downloadTemplate() { showAlert('Template download coming soon!', 'info'); }
-    async function uploadTargets() { showAlert('Upload function coming soon!', 'info'); }
+    async function exportTargets() {
+        const year = document.getElementById("target_year").value;
+        const month = document.getElementById("target_month").value;
+        
+        if (!year || !month) {
+            showAlert("Please select Year and Month before exporting.", "warning");
+            return;
+        }
+
+        const params = new URLSearchParams(getCurrentFilters());
+        const exportBtn = document.querySelector('button[onclick="exportTargets()"]');
+        const originalText = exportBtn.innerHTML;
+        
+        try {
+            exportBtn.disabled = true;
+            exportBtn.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Exporting...`;
+            
+            const response = await fetch(`/api/v1/export/targets?${params}`, {
+                method: 'GET',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                }
+            });
+
+            const contentType = response.headers.get('content-type');
+            
+            if (!response.ok) {
+                if (contentType && contentType.includes('application/json')) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || 'Export failed');
+                } else {
+                    const textResponse = await response.text();
+                    if (textResponse.includes('<')) {
+                        throw new Error('Authentication required. Please refresh the page and try again.');
+                    }
+                    throw new Error('Export failed: ' + response.statusText);
+                }
+            }
+
+            if (contentType && contentType.includes('text/html')) {
+                throw new Error('Received HTML instead of CSV. Please try logging in again.');
+            }
+
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `targets_${year}_${month}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            
+            showAlert("Export completed successfully", "success");
+        } catch (error) {
+            console.error('Export error:', error);
+            showAlert("Failed to export targets: " + error.message, "error");
+        } finally {
+            exportBtn.disabled = false;
+            exportBtn.innerHTML = originalText;
+        }
+    }
+
+    function showUploadModal() {
+        new bootstrap.Modal(document.getElementById('uploadModal')).show();
+    }
+
+    async function downloadTemplate() {
+        const templateBtn = document.querySelector('button[onclick="downloadTemplate()"]');
+        const originalText = templateBtn.innerHTML;
+        
+        try {
+            templateBtn.disabled = true;
+            templateBtn.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Downloading...`;
+            
+            const response = await fetch('/api/v1/export/template', {
+                method: 'GET',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                }
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Template download failed');
+            }
+
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('text/html')) {
+                throw new Error('Received HTML instead of CSV. Please try logging in again.');
+            }
+
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `targets_template.csv`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            
+            showAlert("Template downloaded successfully", "success");
+        } catch (error) {
+            console.error('Template download error:', error);
+            showAlert("Failed to download template: " + error.message, "error");
+        } finally {
+            templateBtn.disabled = false;
+            templateBtn.innerHTML = originalText;
+        }
+    }
+
+    async function uploadTargets() {
+        const form = document.getElementById('uploadForm');
+        const fileInput = document.getElementById('upload_file');
+        const year = document.getElementById("target_year").value;
+        const month = document.getElementById("target_month").value;
+
+        if (!year || !month) {
+            showAlert("Please select Year and Month before uploading.", "warning");
+            return;
+        }
+
+        if (!fileInput.files.length) {
+            showAlert("Please select a file to upload.", "warning");
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]);
+        formData.append('year', year);
+        formData.append('month', month);
+
+        try {
+            const response = await fetch('/api/v1/targets/upload', {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                },
+                body: formData
+            });
+
+            const result = await response.json();
+            
+            if (!response.ok) throw new Error(result.message || 'Upload failed');
+            
+            showAlert(`Upload completed: ${result.created} created, ${result.updated} updated`, "success");
+            if (result.errors > 0) {
+                console.error('Upload errors:', result.error_details);
+                showAlert(`Warning: ${result.errors} errors occurred. Check console for details.`, "warning");
+            }
+            
+            // Reset the file input
+            fileInput.value = '';
+            
+            // Close modal
+            bootstrap.Modal.getInstance(document.getElementById('uploadModal')).hide();
+            
+            // Wait a bit for the backend to finish processing
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            // Refresh the matrix with current filters
+            await loadTargetMatrix();
+            
+            // Force a complete refresh of the data
+            await loadMasterData();
+            
+        } catch (error) {
+            showAlert(error.message, "error");
+        }
+    }
 
     document.addEventListener("DOMContentLoaded", loadMasterData);
 </script>

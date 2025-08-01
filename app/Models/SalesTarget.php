@@ -17,6 +17,7 @@ class SalesTarget extends Model
         'salesman_id',
         'supplier_id',
         'category_id',
+        'classification',
         'target_amount',
         'notes',
     ];

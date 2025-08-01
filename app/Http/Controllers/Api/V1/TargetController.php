@@ -441,7 +441,7 @@ class TargetController extends Controller
                     [
                         'region_id' => $salesman->region_id,
                         'channel_id' => $salesman->channel_id,
-                        'target_amount' => $targetData['amount'],
+                        'target_amount' => $targetData['target_amount'],
                         'notes' => $targetData['notes'] ?? null,
                     ]
                 );
@@ -465,20 +465,54 @@ class TargetController extends Controller
         $request->validate([
             'year' => 'required|integer',
             'month' => 'required|integer|min:1|max:12',
+            'region_id' => 'nullable|exists:regions,id',
+            'channel_id' => 'nullable|exists:channels,id',
+            'supplier_id' => 'nullable|exists:suppliers,id',
+            'category_id' => 'nullable|exists:categories,id',
+            'salesman_id' => 'nullable|exists:salesmen,id',
+            'classification' => 'nullable|in:food,non_food,both',
         ]);
 
         $user = Auth::user();
+        
+        // Start with salesmen query to get filtered salesmen
+        $salesmenQuery = \App\Models\Salesman::query();
+        
+        if ($request->filled('region_id')) {
+            $salesmenQuery->where('region_id', $request->region_id);
+        }
+        if ($request->filled('channel_id')) {
+            $salesmenQuery->where('channel_id', $request->channel_id);
+        }
+        if ($request->filled('salesman_id')) {
+            $salesmenQuery->where('id', $request->salesman_id);
+        }
+        if ($request->filled('classification') && $request->classification !== 'both') {
+            $salesmenQuery->where('classification', $request->classification);
+        }
+        
+        // Get filtered salesman IDs
+        $salesmanIds = $salesmenQuery->pluck('id');
+
+        // Build targets query with all filters
         $query = SalesTarget::with([
             'region', 'channel', 'salesman', 'supplier', 'category'
         ])->where('year', $request->year)
-          ->where('month', $request->month);
+          ->where('month', $request->month)
+          ->whereIn('salesman_id', $salesmanIds);
 
-        // Apply user scope
+        if ($request->filled('supplier_id')) {
+            $query->where('supplier_id', $request->supplier_id);
+        }
+        if ($request->filled('category_id')) {
+            $query->where('category_id', $request->category_id);
+        }
+
+        // Apply user scope for managers
         if ($user->isManager()) {
             $query->where('region_id', $user->region_id)
                   ->where('channel_id', $user->channel_id);
                   
-            // Apply classification filter if specified
             if ($user->classification && $user->classification !== 'both') {
                 $query->whereHas('salesman', function($q) use ($user) {
                     $q->where('classification', $user->classification);
@@ -488,6 +522,7 @@ class TargetController extends Controller
 
         $targets = $query->get();
 
+        // Prepare CSV data
         $csvData = [];
         $csvData[] = [
             'Classification', 'Status', 'Year', 'Month', 'Region', 'Channel', 
@@ -496,10 +531,10 @@ class TargetController extends Controller
 
         foreach ($targets as $target) {
             $csvData[] = [
-                $target->salesman->classification ?? '',
+                $target->classification ?? $target->salesman->classification ?? '',
                 'Active',
                 $target->year,
-                date('M', mktime(0, 0, 0, $target->month, 1)),
+                str_pad($target->month, 2, '0', STR_PAD_LEFT), // Format as 01, 02, etc.
                 $target->region->name ?? '',
                 $target->channel->name ?? '',
                 $target->supplier->name ?? '',
@@ -508,14 +543,17 @@ class TargetController extends Controller
                 $target->salesman->salesman_code ?? '',
                 $target->salesman->employee_code ?? '',
                 $target->salesman->name ?? '',
-                $target->target_amount
+                number_format($target->target_amount, 2, '.', '') // Format as 1000.00
             ];
         }
 
-        $filename = "targets_{$request->year}_{$request->month}.csv";
+        $monthName = date('M', mktime(0, 0, 0, $request->month, 1));
+        $filename = "targets_{$request->year}_{$monthName}.csv";
         
         $callback = function() use ($csvData) {
             $file = fopen('php://output', 'w');
+            // Add BOM for Excel compatibility
+            fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF));
             foreach ($csvData as $row) {
                 fputcsv($file, $row);
             }
@@ -554,89 +592,197 @@ class TargetController extends Controller
                 'error_details' => []
             ];
 
-            // Read file content
+            // Try to detect the encoding and convert if necessary
             $content = file_get_contents($file->getPathname());
-            $lines = explode("\n", $content);
+            $encoding = mb_detect_encoding($content, ['UTF-8', 'UTF-16', 'ISO-8859-1', 'Windows-1252'], true);
+            if ($encoding !== 'UTF-8') {
+                $content = mb_convert_encoding($content, 'UTF-8', $encoding);
+            }
+
+            // Remove any BOM and special characters
+            $content = preg_replace('/[\x00-\x1F\x7F-\xFF]/', '', $content);
+            $content = preg_replace('/^\xEF\xBB\xBF/', '', $content); // Remove BOM if present
             
-            if (empty($lines)) {
+            // Create a temporary file with the cleaned content
+            $tempFile = tmpfile();
+            fwrite($tempFile, $content);
+            fseek($tempFile, 0);
+
+            // Get headers from first line
+            $headers = fgetcsv($tempFile);
+            if ($headers === false) {
+                fclose($tempFile);
                 return response()->json(['message' => 'File is empty or could not be read.'], 400);
             }
 
-            // Get headers from first line
-            $headers = str_getcsv(array_shift($lines));
-            $headers = array_map('trim', $headers);
+            // Debug original headers
+            \Log::info('Original headers:', $headers);
             
-            // Clean headers (remove BOM and normalize)
-            $headers[0] = preg_replace('/^\x{FEFF}/', '', $headers[0]);
+            // Clean and normalize headers - more permissive now
             $headers = array_map(function($header) {
-                return preg_replace('/[^\w\s]/', '', strtolower(trim($header)));
+                // Remove any non-printable characters
+                $header = preg_replace('/[\x00-\x1F\x7F-\xFF]/', '', $header);
+                // Convert to lowercase and trim
+                $header = strtolower(trim($header));
+                // Replace multiple spaces with single space
+                $header = preg_replace('/\s+/', ' ', $header);
+                return $header;
             }, $headers);
+            
+            // Debug cleaned headers
+            \Log::info('Cleaned headers:', $headers);
 
-            // Expected headers mapping
+            // Expected headers mapping with more variations
             $headerMap = [
-                'salesman_code' => ['salesman code', 'salesmancode', 'sal code', 'salcode'],
-                'employee_code' => ['employee code', 'employeecode', 'emp code', 'empcode'],
-                'salesman_name' => ['salesman name', 'salesmanname', 'name', 'salesman'],
-                'region' => ['region', 'region name', 'regionname'],
-                'channel' => ['channel', 'channel name', 'channelname'],
-                'supplier' => ['supplier', 'supplier name', 'suppliername'],
-                'category' => ['category', 'category name', 'categoryname'],
-                'amount' => ['amount', 'target amount', 'targetamount', 'target']
+                'salesman_code' => [
+                    'salesman code', 'salesmancode', 'sal code', 'salcode', 'scode',
+                    'salesman id', 'salesmanid', 'sal id', 'salid'
+                ],
+                'employee_code' => [
+                    'employee code', 'employeecode', 'emp code', 'empcode', 'ecode',
+                    'employee id', 'employeeid', 'emp id', 'empid', 'staff id', 'staffid'
+                ],
+                'salesman_name' => [
+                    'salesman name', 'salesmanname', 'name', 'salesman',
+                    'employee name', 'employeename', 'staff name', 'staffname'
+                ],
+                'region' => [
+                    'region', 'region name', 'regionname', 'area', 'area name', 'areaname',
+                    'territory', 'territory name', 'territoryname'
+                ],
+                'channel' => [
+                    'channel', 'channel name', 'channelname', 'sales channel',
+                    'distribution channel', 'dist channel'
+                ],
+                'supplier' => [
+                    'supplier', 'supplier name', 'suppliername', 'vendor',
+                    'vendor name', 'vendorname'
+                ],
+                'category' => [
+                    'category', 'category name', 'categoryname', 'product category',
+                    'product line', 'productline'
+                ],
+                'amount' => [
+                    'amount', 'target amount', 'targetamount', 'target',
+                    'value', 'target value', 'sales target', 'quota'
+                ]
             ];
 
-            // Find header positions
+            // Find header positions with more flexible matching
             $positions = [];
             foreach ($headerMap as $field => $variations) {
                 foreach ($variations as $variation) {
+                    // Try exact match first
                     $pos = array_search($variation, $headers);
                     if ($pos !== false) {
                         $positions[$field] = $pos;
                         break;
                     }
+                    
+                    // Try partial match if exact match fails
+                    foreach ($headers as $index => $header) {
+                        if (strpos($header, $variation) !== false) {
+                            $positions[$field] = $index;
+                            break 2;
+                        }
+                    }
                 }
             }
+            
+            // Debug found positions
+            \Log::info('Found header positions:', $positions);
 
-            // Check required headers
-            $requiredFields = ['employee_code', 'amount'];
+            // Check required headers with better error messages
+            $requiredFields = ['employee_code', 'supplier', 'category', 'amount'];
+            $missingFields = [];
             foreach ($requiredFields as $field) {
                 if (!isset($positions[$field])) {
-                    return response()->json([
-                        'message' => "Required column '{$field}' not found in file headers."
-                    ], 400);
+                    $missingFields[] = $field;
                 }
+            }
+            
+            if (!empty($missingFields)) {
+                $expectedVariations = [];
+                foreach ($missingFields as $field) {
+                    $expectedVariations[$field] = $headerMap[$field];
+                }
+                
+                return response()->json([
+                    'message' => "Required column(s) not found in file headers: " . implode(", ", $missingFields),
+                    'found_headers' => $headers,
+                    'expected_variations' => $expectedVariations
+                ], 400);
             }
 
             // Process each data row
-            foreach ($lines as $lineNumber => $line) {
-                $line = trim($line);
-                if (empty($line)) continue;
-
+            $lineNumber = 1; // Start from 1 since headers are line 0
+            while (($data = fgetcsv($tempFile)) !== false) {
+                // Skip empty lines or lines with only whitespace
+                if (empty(array_filter($data, function($cell) { return trim($cell) !== ''; }))) {
+                    continue;
+                }
+                
                 $results['processed']++;
-                $data = str_getcsv($line);
                 
                 try {
-                    // Extract data based on positions
+                    // Clean and extract data based on positions
                     $salesmanCode = isset($positions['salesman_code']) ? trim($data[$positions['salesman_code']] ?? '') : '';
                     $employeeCode = isset($positions['employee_code']) ? trim($data[$positions['employee_code']] ?? '') : '';
+                    $supplierName = isset($positions['supplier']) ? trim($data[$positions['supplier']] ?? '') : '';
+                    $categoryName = isset($positions['category']) ? trim($data[$positions['category']] ?? '') : '';
                     $amount = isset($positions['amount']) ? trim($data[$positions['amount']] ?? '') : '';
                     
+                    // Clean up codes - remove any special characters but keep alphanumeric and common separators
+                    $salesmanCode = preg_replace('/[^a-zA-Z0-9\-_.]/', '', $salesmanCode);
+                    $employeeCode = preg_replace('/[^a-zA-Z0-9\-_.]/', '', $employeeCode);
+                    
+                    // Skip row if required data is missing
                     if (empty($salesmanCode) && empty($employeeCode)) {
-                        throw new \Exception("Missing salesman code or employee code");
+                        $results['errors']++;
+                        $results['error_details'][] = "Row " . ($lineNumber + 1) . ": Missing salesman code or employee code - skipped";
+                        $lineNumber++;
+                        continue;
+                    }
+                    
+                    if (empty($supplierName)) {
+                        $results['errors']++;
+                        $results['error_details'][] = "Row " . ($lineNumber + 1) . ": Missing supplier name - skipped";
+                        $lineNumber++;
+                        continue;
+                    }
+                    
+                    if (empty($categoryName)) {
+                        $results['errors']++;
+                        $results['error_details'][] = "Row " . ($lineNumber + 1) . ": Missing category name - skipped";
+                        $lineNumber++;
+                        continue;
                     }
                     
                     if (empty($amount)) {
-                        throw new \Exception("Missing amount");
+                        $results['errors']++;
+                        $results['error_details'][] = "Row " . ($lineNumber + 1) . ": Missing amount - skipped";
+                        $lineNumber++;
+                        continue;
                     }
 
-                    // Convert amount to numeric
-                    $amount = preg_replace('/[^\d.-]/', '', $amount);
+                    // Validate and parse amount
+                    $amount = str_replace([',', ' '], ['', ''], $amount); // Remove commas and spaces
+                    if (!is_numeric($amount)) {
+                        $results['errors']++;
+                        $results['error_details'][] = "Row " . ($lineNumber + 1) . ": Invalid amount format '{$amount}' - skipped";
+                        $lineNumber++;
+                        continue;
+                    }
                     $amount = floatval($amount);
                     
-                    if ($amount <= 0) {
-                        throw new \Exception("Invalid amount: {$amount}");
+                    if ($amount < 0) {
+                        $results['errors']++;
+                        $results['error_details'][] = "Row " . ($lineNumber + 1) . ": Negative amount '{$amount}' - skipped";
+                        $lineNumber++;
+                        continue;
                     }
 
-                    // Find salesman by salesman_code first, then by employee_code
+                    // Find salesman - skip if not found in master data
                     $salesman = null;
                     if (!empty($salesmanCode)) {
                         $salesman = \App\Models\Salesman::where('salesman_code', $salesmanCode)->first();
@@ -647,18 +793,44 @@ class TargetController extends Controller
                     
                     if (!$salesman) {
                         $identifier = !empty($salesmanCode) ? "salesman code: {$salesmanCode}" : "employee code: {$employeeCode}";
-                        throw new \Exception("Salesman not found for {$identifier}");
+                        $results['errors']++;
+                        $results['error_details'][] = "Row " . ($lineNumber + 1) . ": Salesman not found for {$identifier} - skipped";
+                        $lineNumber++;
+                        continue;
                     }
 
-                    // Create or update target
+                    // Find supplier - skip if not found in master data
+                    $supplier = \App\Models\Supplier::where('name', 'LIKE', '%' . $supplierName . '%')->first();
+                    if (!$supplier) {
+                        $results['errors']++;
+                        $results['error_details'][] = "Row " . ($lineNumber + 1) . ": Supplier '{$supplierName}' not found in master data - skipped";
+                        $lineNumber++;
+                        continue;
+                    }
+
+                    // Find category - skip if not found in master data
+                    $category = \App\Models\Category::where('supplier_id', $supplier->id)
+                                                  ->where('name', 'LIKE', '%' . $categoryName . '%')
+                                                  ->first();
+                    if (!$category) {
+                        $results['errors']++;
+                        $results['error_details'][] = "Row " . ($lineNumber + 1) . ": Category '{$categoryName}' not found for supplier '{$supplierName}' - skipped";
+                        $lineNumber++;
+                        continue;
+                    }
+
+                    // All master data found - create or update target (only amount is updated)
                     $target = \App\Models\SalesTarget::updateOrCreate([
                         'salesman_id' => $salesman->id,
+                        'supplier_id' => $supplier->id,
+                        'category_id' => $category->id,
                         'year' => $year,
                         'month' => $month,
-                        'region_id' => $salesman->region_id,
-                        'channel_id' => $salesman->channel_id,
                     ], [
-                        'target_amount' => $amount,
+                        'region_id' => $salesman->region_id,  // These come from existing master data
+                        'channel_id' => $salesman->channel_id, // These come from existing master data
+                        'classification' => $supplier->classification, // Get from supplier
+                        'target_amount' => $amount,  // Only this field is updated from CSV
                     ]);
 
                     if ($target->wasRecentlyCreated) {
@@ -669,10 +841,21 @@ class TargetController extends Controller
 
                 } catch (\Exception $e) {
                     $results['errors']++;
-                    $results['error_details'][] = "Row " . ($lineNumber + 2) . ": " . $e->getMessage();
+                    $results['error_details'][] = "Row " . ($lineNumber + 1) . ": Unexpected error - " . $e->getMessage();
                 }
+                $lineNumber++;
             }
 
+            fclose($tempFile);
+            
+            // Add summary message
+            $totalSuccess = $results['created'] + $results['updated'];
+            $summaryMessage = "Upload completed: {$totalSuccess} targets processed successfully";
+            if ($results['errors'] > 0) {
+                $summaryMessage .= ", {$results['errors']} rows skipped due to invalid/non-matching data";
+            }
+            $results['message'] = $summaryMessage;
+            
             return response()->json($results);
 
         } catch (\Exception $e) {
@@ -709,7 +892,27 @@ class TargetController extends Controller
                 // Create CSV with real data
                 $csvContent = ['Salesman Code,Employee Code,Salesman Name,Region,Channel,Supplier,Category,Amount'];
                 
-                foreach ($salesmen as $salesman) {
+                // Get some real suppliers and categories for the template
+                $suppliers = \App\Models\Supplier::with('categories')->take(3)->get();
+                $sampleSupplierCategory = [];
+                foreach ($suppliers as $supplier) {
+                    foreach ($supplier->categories->take(2) as $category) {
+                        $sampleSupplierCategory[] = [
+                            'supplier' => $supplier->name,
+                            'category' => $category->name
+                        ];
+                    }
+                }
+                
+                // If no suppliers/categories, use defaults
+                if (empty($sampleSupplierCategory)) {
+                    $sampleSupplierCategory = [
+                        ['supplier' => 'SAMPLE_SUPPLIER', 'category' => 'SAMPLE_CATEGORY']
+                    ];
+                }
+                
+                foreach ($salesmen as $index => $salesman) {
+                    $supplierCategory = $sampleSupplierCategory[$index % count($sampleSupplierCategory)];
                     $csvContent[] = sprintf(
                         '%s,%s,%s,%s,%s,%s,%s,%s',
                         $salesman->salesman_code ?? 'SAL' . str_pad($salesman->id, 4, '0', STR_PAD_LEFT),
@@ -717,8 +920,8 @@ class TargetController extends Controller
                         $salesman->name,
                         $salesman->region->name ?? 'Sample Region',
                         $salesman->channel->name ?? 'Sample Channel',
-                        'SAMPLE_SUPPLIER',
-                        'SAMPLE_CATEGORY',
+                        $supplierCategory['supplier'],
+                        $supplierCategory['category'],
                         '1000.00'
                     );
                 }

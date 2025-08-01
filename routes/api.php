@@ -73,12 +73,16 @@ Route::prefix('v1')->group(function () {
         Route::get('/deps/categories', [DependentController::class, 'categories']);
 
 
+        // Export/Import routes (separate from targets resource)
+        Route::get('/export/targets', [TargetController::class, 'exportCsv']);
+        Route::get('/export/template', [TargetController::class, 'downloadTemplate']);
+        
         // Targets (Admin and Manager)
-        Route::apiResource('targets', TargetController::class);
-        Route::post('/targets/bulk', [TargetController::class, 'bulkUpsert']);
         Route::get('/targets/matrix', [TargetController::class, 'getMatrix']);
+        Route::post('/targets/bulk', [TargetController::class, 'bulkUpsert']);
+        Route::post('/targets/upload', [TargetController::class, 'upload']);
         Route::post('/targets/bulk-save', [TargetController::class, 'bulkSave']);
-        Route::get('/targets/export', [TargetController::class, 'exportCsv']);
+        Route::apiResource('targets', TargetController::class);
 
         // Reports (Admin and Manager with scope)
         Route::get('/reports/summary', [ReportController::class, 'summary']);

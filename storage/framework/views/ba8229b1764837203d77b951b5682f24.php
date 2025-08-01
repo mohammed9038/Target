@@ -414,14 +414,16 @@
 
         const targetsToSave = [];
         document.querySelectorAll(".target-amount").forEach(input => {
-            const amount = parseFloat(input.value) || 0;
-            if (!isNaN(amount) && amount >= 0) {
-                targetsToSave.push({
-                    salesman_id: parseInt(input.dataset.salesmanId),
-                    supplier_id: parseInt(input.dataset.supplierId),
-                    category_id: parseInt(input.dataset.categoryId),
-                    target_amount: amount
-                });
+            if (input.value.trim() !== '') {
+                const amount = parseFloat(input.value);
+                if (!isNaN(amount) && amount >= 0) {
+                    targetsToSave.push({
+                        salesman_id: parseInt(input.dataset.salesmanId),
+                        supplier_id: parseInt(input.dataset.supplierId),
+                        category_id: parseInt(input.dataset.categoryId),
+                        target_amount: amount
+                    });
+                }
             }
         });
 

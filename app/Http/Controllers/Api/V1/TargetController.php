@@ -305,20 +305,30 @@ class TargetController extends Controller
 
         $user = Auth::user();
 
-        // 1. Get Salesmen
-        $salesmenQuery = \DB::table('salesmen')
-            ->leftJoin('regions', 'salesmen.region_id', '=', 'regions.id')
-            ->leftJoin('channels', 'salesmen.channel_id', '=', 'channels.id')
-            ->select(
-                'salesmen.id as salesman_id',
-                'salesmen.salesman_code',
-                'salesmen.name as salesman_name',
-                'salesmen.classification as salesman_classification',
-                'regions.name as region_name',
-                'channels.name as channel_name'
-            );
+        // Check period status
+        $period = ActiveMonthYear::where('year', $request->year)
+                                ->where('month', $request->month)
+                                ->first();
+        $isPeriodOpen = $period ? $period->is_open : false;
 
-        // 2. Get Suppliers and Categories
+        // 1. Get Salesmen with all filters applied
+        $salesmenQuery = \App\Models\Salesman::with(['region', 'channel'])
+            ->select('id as salesman_id', 'salesman_code', 'name as salesman_name', 'classification as salesman_classification', 'region_id', 'channel_id');
+
+        if ($request->filled('region_id')) {
+            $salesmenQuery->where('region_id', $request->region_id);
+        }
+        if ($request->filled('channel_id')) {
+            $salesmenQuery->where('channel_id', $request->channel_id);
+        }
+        if ($request->filled('salesman_id')) {
+            $salesmenQuery->where('id', $request->salesman_id);
+        }
+        if ($request->filled('classification') && $request->classification !== 'both') {
+            $salesmenQuery->where('classification', $request->classification);
+        }
+
+        // 2. Get Suppliers and Categories with filters
         $suppliersQuery = \DB::table('suppliers')
             ->join('categories', 'suppliers.id', '=', 'categories.supplier_id')
             ->select(
@@ -329,24 +339,45 @@ class TargetController extends Controller
                 'categories.name as category_name'
             );
 
-        // Apply filters
-        if ($request->filled('region_id')) {
-            $salesmenQuery->where('salesmen.region_id', $request->region_id);
-        }
         if ($request->filled('supplier_id')) {
             $suppliersQuery->where('suppliers.id', $request->supplier_id);
         }
+        if ($request->filled('category_id')) {
+            $suppliersQuery->where('categories.id', $request->category_id);
+        }
+         if ($request->filled('classification') && $request->classification !== 'both') {
+            $suppliersQuery->where('suppliers.classification', $request->classification);
+        }
 
-        // 3. Get existing targets
-        $existingTargets = SalesTarget::where('year', $request->year)
-            ->where('month', $request->month)
-            ->get(['salesman_id', 'supplier_id', 'category_id', 'target_amount']);
+
+        // 3. Get existing targets for the given filters
+        $targetsQuery = SalesTarget::where('year', $request->year)->where('month', $request->month);
+        if ($request->filled('salesman_id')) {
+            $targetsQuery->where('salesman_id', $request->salesman_id);
+        }
+        if ($request->filled('supplier_id')) {
+            $targetsQuery->where('supplier_id', $request->supplier_id);
+        }
+        if ($request->filled('category_id')) {
+            $targetsQuery->where('category_id', $request->category_id);
+        }
+
 
         return response()->json([
             'data' => [
-                'salesmen' => $salesmenQuery->get(),
+                'salesmen' => $salesmenQuery->get()->map(function($s){
+                    return [
+                        'salesman_id' => $s->salesman_id,
+                        'salesman_code' => $s->salesman_code,
+                        'salesman_name' => $s->salesman_name,
+                        'salesman_classification' => $s->salesman_classification,
+                        'region_name' => $s->region->name ?? 'N/A',
+                        'channel_name' => $s->channel->name ?? 'N/A'
+                    ];
+                }),
                 'suppliers' => $suppliersQuery->get(),
-                'targets' => $existingTargets,
+                'targets' => $targetsQuery->get(['salesman_id', 'supplier_id', 'category_id', 'target_amount']),
+                'is_period_open' => $isPeriodOpen
             ]
         ]);
     }

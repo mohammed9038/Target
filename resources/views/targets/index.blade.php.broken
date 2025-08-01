@@ -1,0 +1,1000 @@
+@extends('layouts.app')
+
+@section('title', __('Sales Targets'))
+
+@section('content')
+<div class="d-flex justify-content-between align-items-start mb-4">
+    <div>
+        <h1 class="h2 mb-1">{{ __('Sales Targets') }}</h1>
+        <p class="text-muted mb-0">{{ __('Set sales targets for your team members') }}</p>
+    </div>
+    <div class="d-flex gap-2" style="margin-top: 0.5rem;">
+        @if(auth()->user()->isAdmin())
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#uploadModal">
+                <i class="bi bi-upload me-2"></i>{{ __('Upload Targets') }}
+            </button>
+        @endif
+        <button type="button" class="btn btn-success" onclick="saveAllTargets()" id="saveAllBtn" disabled>
+            <i class="bi bi-check-circle me-2"></i>{{ __('Save All Targets') }}
+        </button>
+        <button type="button" class="btn btn-outline-secondary" onclick="exportTargets()">
+            <i class="bi bi-file-earmark-spreadsheet me-2"></i>{{ __('Export CSV') }}
+    </button>
+    </div>
+</div>
+
+<!-- Filters & Period Selection -->
+<div class="card mb-3">
+    <div class="card-body py-2">
+        <!-- Period Selection Row -->
+        <div class="row g-2 align-items-end mb-2">
+            <div class="col-md-2">
+                <label for="target_year" class="form-label small mb-1">
+                    <i class="bi bi-calendar-event me-1"></i>{{ __('Year') }} <span class="text-danger">*</span>
+                </label>
+                <select class="form-select form-select-sm" id="target_year" name="year" required>
+                    <option value="">{{ __('Select Year') }}</option>
+                    @for($y = date('Y'); $y <= date('Y') + 2; $y++)
+                        <option value="{{ $y }}" {{ $y == date('Y') ? 'selected' : '' }}>{{ $y }}</option>
+                    @endfor
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label for="target_month" class="form-label small mb-1">
+                    <i class="bi bi-calendar-month me-1"></i>{{ __('Month') }} <span class="text-danger">*</span>
+                </label>
+                <select class="form-select form-select-sm" id="target_month" name="month" required>
+                    <option value="">{{ __('Select Month') }}</option>
+                    @for($m = 1; $m <= 12; $m++)
+                        <option value="{{ $m }}" {{ $m == date('n') ? 'selected' : '' }}>
+                            {{ date('F', mktime(0, 0, 0, $m, 1)) }}
+                        </option>
+                    @endfor
+                </select>
+            </div>
+            <div class="col-md-2">
+                <div id="period-status"></div>
+            </div>
+            <div class="col-md-2">
+                <button type="button" class="btn btn-sm btn-primary w-100" onclick="loadTargetMatrix()">
+                    <i class="bi bi-table me-1"></i>{{ __('Load Matrix') }}
+                </button>
+            </div>
+            <div class="col-md-4 text-end">
+                <small class="text-muted">
+                    <i class="bi bi-funnel me-1"></i>{{ __('Filters') }}:
+                </small>
+            </div>
+        </div>
+        
+        <!-- Filters Row -->
+        <div class="row g-2">
+            <div class="col-md-2">
+                <select class="form-select form-select-sm" id="filter_classification" {{ auth()->user()->isManager() && auth()->user()->classification && auth()->user()->classification !== 'both' ? 'disabled' : '' }}>
+                    @if(auth()->user()->isAdmin())
+                        <option value="">{{ __('All Classifications') }}</option>
+                        <option value="food">{{ __('Food') }}</option>
+                        <option value="non_food">{{ __('Non-Food') }}</option>
+                        <option value="both">{{ __('Both') }}</option>
+                    @else
+                        @if(auth()->user()->classification)
+                            @if(auth()->user()->classification === 'both')
+                                <option value="">{{ __('All Classifications') }}</option>
+                                <option value="food">{{ __('Food') }}</option>
+                                <option value="non_food">{{ __('Non-Food') }}</option>
+                                <option value="both" selected>{{ __('Both') }}</option>
+                            @else
+                                <option value="{{ auth()->user()->classification }}" selected>
+                                    {{ auth()->user()->classification === 'food' ? __('Food') : __('Non-Food') }}
+                                </option>
+                            @endif
+                        @else
+                            <option value="">{{ __('All Classifications') }}</option>
+                            <option value="food">{{ __('Food') }}</option>
+                            <option value="non_food">{{ __('Non-Food') }}</option>
+                            <option value="both">{{ __('Both') }}</option>
+                        @endif
+                    @endif
+                </select>
+            </div>
+            @if(auth()->user()->isAdmin())
+            <div class="col-md-2">
+                <select class="form-select form-select-sm" id="filter_region">
+                    <option value="">{{ __('All Regions') }}</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <select class="form-select form-select-sm" id="filter_channel">
+                    <option value="">{{ __('All Channels') }}</option>
+                </select>
+            </div>
+            @else
+            <!-- Manager sees their assigned region/channel only -->
+            <div class="col-md-2">
+                <select class="form-select form-select-sm" id="filter_region" disabled>
+                                                @if(auth()->user()->regions->count() == 1)
+                                <option value="{{ auth()->user()->regions->first()->id }}">{{ auth()->user()->regions->first()->name }}</option>
+                            @else
+                                @foreach(auth()->user()->regions as $region)
+                                    <option value="{{ $region->id }}">{{ $region->name }}</option>
+                                @endforeach
+                            @endif
+                </select>
+            </div>
+            <div class="col-md-2">
+                <select class="form-select form-select-sm" id="filter_channel" disabled>
+                    @if(auth()->user()->channels->count() == 1)
+                        <option value="{{ auth()->user()->channels->first()->id }}">{{ auth()->user()->channels->first()->name }}</option>
+                    @else
+                        @foreach(auth()->user()->channels as $channel)
+                            <option value="{{ $channel->id }}">{{ $channel->name }}</option>
+                        @endforeach
+                    @endif
+                </select>
+            </div>
+            @endif
+            <div class="col-md-2">
+                <select class="form-select form-select-sm" id="filter_supplier">
+                    <option value="">{{ __('All Suppliers') }}</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <select class="form-select form-select-sm" id="filter_category">
+                    <option value="">{{ __('All Categories') }}</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <select class="form-select form-select-sm" id="filter_salesman">
+                    <option value="">{{ __('All Salesmen') }}</option>
+                </select>
+            </div>
+        </div>
+        
+        <!-- Action Buttons Row -->
+        <div class="row g-2 mt-1">
+            <div class="col-md-8"></div>
+            <div class="col-md-2">
+                <button type="button" class="btn btn-sm btn-primary w-100" onclick="applyFilters()">
+                    <i class="bi bi-search me-1"></i>{{ __('Apply') }}
+                </button>
+            </div>
+            <div class="col-md-2">
+                <button type="button" class="btn btn-sm btn-outline-secondary w-100" onclick="resetFilters()">
+                    <i class="bi bi-x-circle me-1"></i>{{ __('Clear') }}
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+                    
+<!-- Target Matrix Table -->
+<div class="card" id="target-matrix-card" style="display: none;">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <div>
+            <h5 class="mb-0">
+                <i class="bi bi-table me-2"></i>{{ __('Target Entry Matrix') }}
+            </h5>
+            <small class="text-muted" id="matrix-period-info"></small>
+        </div>
+        <div class="d-flex gap-2">
+            <button type="button" class="btn btn-sm btn-outline-primary" onclick="fillAllAmounts()">
+                <i class="bi bi-calculator me-1"></i>{{ __('Fill All') }}
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="clearAllAmounts()">
+                <i class="bi bi-x-circle me-1"></i>{{ __('Clear All') }}
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="resetMatrix()">
+                <i class="bi bi-arrow-clockwise me-1"></i>{{ __('Reset') }}
+            </button>
+            <button type="button" class="btn btn-sm btn-success" onclick="saveAllTargets()" id="saveMatrixBtn" disabled>
+                <i class="bi bi-check-circle me-1"></i>{{ __('Save All Targets') }}
+            </button>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-sm table-striped mb-0" id="target-matrix-table" style="min-width: 1200px;">
+                <thead class="table-dark">
+                    <tr>
+                        <th class="text-center" style="width: 50px; white-space: nowrap;">
+                            <i class="bi bi-hash me-1"></i>#
+                        </th>
+                        <th class="text-center" style="width: 90px; white-space: nowrap;">
+                            <i class="bi bi-person-badge me-1"></i>{{ __('Emp Code') }}
+                        </th>
+                        <th style="width: 180px; white-space: nowrap;">
+                            <i class="bi bi-person me-1"></i>{{ __('Salesman Name') }}
+                        </th>
+                        <th class="text-center" style="width: 100px; white-space: nowrap;">
+                            <i class="bi bi-tags me-1"></i>{{ __('Class') }}
+                        </th>
+                        <th class="text-center" style="width: 100px; white-space: nowrap;">
+                            <i class="bi bi-geo-alt me-1"></i>{{ __('Region') }}
+                        </th>
+                        <th class="text-center" style="width: 100px; white-space: nowrap;">
+                            <i class="bi bi-diagram-3 me-1"></i>{{ __('Channel') }}
+                        </th>
+                        <th class="text-center" style="width: 120px; white-space: nowrap;">
+                            <i class="bi bi-building me-1"></i>{{ __('Supplier') }}
+                        </th>
+                        <th class="text-center" style="width: 120px; white-space: nowrap;">
+                            <i class="bi bi-box me-1"></i>{{ __('Category') }}
+                        </th>
+                        <th class="text-center" style="width: 130px; white-space: nowrap;">
+                            <i class="bi bi-currency-dollar me-1"></i>{{ __('Target Amount') }}
+                        </th>
+                    </tr>
+                </thead>
+                <tbody id="target-matrix-tbody">
+                    <!-- Target matrix rows will be loaded here -->
+                </tbody>
+            </table>
+                        </div>
+                    </div>
+    <div class="card-footer bg-light">
+        <div class="text-center">
+            <small class="text-muted">
+                <i class="bi bi-info-circle me-1"></i>
+                <span id="total-rows">0</span> {{ __('salesmen') }} • 
+                <span id="filled-rows">0</span> {{ __('with targets') }} • 
+                <strong>{{ __('Total:') }} $<span id="total-amount">0.00</span></strong>
+            </small>
+        </div>
+    </div>
+                    </div>
+                    
+<!-- Instructions Card -->
+<div class="card" id="instructions-card">
+    <div class="card-body text-center py-5">
+        <div class="text-muted">
+            <i class="bi bi-table" style="font-size: 3rem;"></i>
+            <h5 class="mt-3">{{ __('Select Period to Load Target Matrix') }}</h5>
+            <p class="mb-3">{{ __('Choose a year and month above to load the target entry matrix for your salesmen.') }}</p>
+            <div class="row justify-content-center">
+                <div class="col-md-8">
+                    <div class="alert alert-info">
+                        <h6><i class="bi bi-lightbulb me-2"></i>{{ __('How it works:') }}</h6>
+                        <ul class="list-unstyled mb-0 text-start">
+                            <li><i class="bi bi-check-circle text-success me-2"></i>{{ __('Select year and month for target period') }}</li>
+                            <li><i class="bi bi-check-circle text-success me-2"></i>{{ __('Load matrix showing all salesmen combinations') }}</li>
+                            <li><i class="bi bi-check-circle text-success me-2"></i>{{ __('Fill target amounts for each salesman') }}</li>
+                            <li><i class="bi bi-check-circle text-success me-2"></i>{{ __('Save all targets at once') }}</li>
+                            <li><i class="bi bi-exclamation-triangle text-warning me-2"></i>{{ __('Targets can only be edited when period is open') }}</li>
+                        </ul>
+                    </div>
+            </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+@push('scripts')
+<script>
+let matrixData = [];
+let currentPeriod = { year: null, month: null, isOpen: false };
+let hasChanges = false;
+let masterData = {
+    regions: [],
+    channels: [],
+    suppliers: [],
+    categories: [],
+    salesmen: []
+};
+
+// Get CSRF token from meta tag
+const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+// Default fetch options with CSRF token
+const fetchOptions = {
+    headers: {
+        'X-CSRF-TOKEN': csrfToken,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+    },
+    credentials: 'same-origin' // This is important for cookies/session
+};
+
+// Load master data for filters
+async function loadMasterData() {
+    try {
+        // Simple fetch options without authentication for direct API endpoints
+        const simpleOptions = {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json'
+            }
+        };
+
+        // Load regions
+        const regionsResponse = await fetch('/api/deps/regions', fetchOptions);
+        masterData.regions = await regionsResponse.json();
+        populateFilter('filter_region', masterData.regions);
+
+        // Load channels
+        const channelsResponse = await fetch('/api/deps/channels', fetchOptions);
+        masterData.channels = await channelsResponse.json();
+        populateFilter('filter_channel', masterData.channels);
+
+        // Load suppliers
+        const suppliersResponse = await fetch('/api/deps/suppliers', fetchOptions);
+        masterData.suppliers = await suppliersResponse.json();
+        populateFilter('filter_supplier', masterData.suppliers);
+
+        // Load categories
+        const categoriesResponse = await fetch('/api/deps/categories', fetchOptions);
+        masterData.categories = await categoriesResponse.json();
+        populateFilter('filter_category', masterData.categories);
+
+        // Load salesmen
+        const salesmenResponse = await fetch('/api/deps/salesmen', fetchOptions);
+        masterData.salesmen = await salesmenResponse.json();
+        populateFilter('filter_salesman', masterData.salesmen);
+    } catch (error) {
+        console.error('Error loading master data:', error);
+        showAlert('Error loading filter data. Please try again.', 'error');
+    }
+}
+
+// Populate filter dropdowns
+function populateFilter(filterId, data) {
+    const select = document.getElementById(filterId);
+    const currentValue = select.value;
+    
+    // Clear existing options except the first one
+    while (select.options.length > 1) {
+        select.remove(1);
+    }
+    
+    // Add new options
+    data.forEach(item => {
+        const option = document.createElement('option');
+        option.value = item.id;
+        option.textContent = item.name;
+        select.appendChild(option);
+    });
+    
+    // Restore previous value if it exists
+    if (currentValue) {
+        select.value = currentValue;
+    }
+}
+
+// Apply filters
+function applyFilters() {
+    loadTargetMatrix();
+}
+
+// Reset filters
+function resetFilters() {
+    document.getElementById('filter_classification').value = '';
+    document.getElementById('filter_region').value = '';
+    document.getElementById('filter_channel').value = '';
+    document.getElementById('filter_supplier').value = '';
+    document.getElementById('filter_category').value = '';
+    document.getElementById('filter_salesman').value = '';
+    loadTargetMatrix();
+}
+
+function checkPeriodStatus() {
+    const year = document.getElementById('target_year').value;
+    const month = document.getElementById('target_month').value;
+    const statusDiv = document.getElementById('period-status');
+    
+    if (!year || !month) {
+        statusDiv.innerHTML = '';
+        return;
+    }
+    
+    // Check if period is open
+    fetch(`/api/periods/check?year=${year}&month=${month}`, fetchOptions)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            currentPeriod = { year: year, month: month, isOpen: data.is_open };
+            
+            if (data.is_open) {
+                statusDiv.innerHTML = `
+                    <span class="badge bg-success-subtle text-success">
+                        <i class="bi bi-unlock me-1"></i>{{ __('Period Open') }}
+                    </span>
+                `;
+            } else {
+                statusDiv.innerHTML = `
+                    <span class="badge bg-danger-subtle text-danger">
+                        <i class="bi bi-lock me-1"></i>{{ __('Period Closed') }}
+                    </span>
+                `;
+            }
+        })
+        .catch(error => {
+            console.error('Period check error:', error);
+            statusDiv.innerHTML = `
+                <span class="badge bg-warning-subtle text-warning">
+                    <i class="bi bi-question-circle me-1"></i>{{ __('Period Not Found') }}
+                </span>
+            `;
+            showAlert('Error checking period status. Please try again.', 'error');
+        });
+}
+
+async function loadTargetMatrix() {
+    try {
+        // Get filter values
+        const filters = {
+            year: document.getElementById('target_year').value,
+            month: document.getElementById('target_month').value,
+            classification: document.getElementById('filter_classification').value,
+            region_id: document.getElementById('filter_region').value,
+            channel_id: document.getElementById('filter_channel').value,
+            supplier_id: document.getElementById('filter_supplier').value,
+            category_id: document.getElementById('filter_category').value,
+            salesman_id: document.getElementById('filter_salesman').value,
+        };
+
+        // Check if year and month are selected
+        if (!filters.year || !filters.month) {
+            showAlert('Please select both year and month.', 'error');
+            return;
+        }
+
+        // Hide instructions and show matrix
+        document.getElementById('instructions-card').style.display = 'none';
+        document.getElementById('target-matrix-card').style.display = 'block';
+        
+        // Update period info
+        const monthName = new Date(filters.year, filters.month - 1).toLocaleDateString('en-US', {month: 'long'});
+        document.getElementById('matrix-period-info').textContent = `${monthName} ${filters.year}`;
+
+        // Show loading state
+        document.getElementById('target-matrix-tbody').innerHTML = `
+            <tr>
+                <td colspan="9" class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2 text-muted">Loading target matrix...</p>
+                </td>
+            </tr>
+        `;
+
+        // Build query string
+        const queryParams = new URLSearchParams(filters);
+        const response = await fetch(`/api/targets/matrix?${queryParams}`, fetchOptions);
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('API Error Response:', errorText);
+            console.error('Request URL:', `/api/targets/matrix?${queryParams}`);
+            console.error('Response status:', response.status);
+            console.error('Response headers:', [...response.headers.entries()]);
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const result = await response.json();
+        matrixData = result.data || [];
+
+        // Check if we have any data
+        if (!matrixData || matrixData.length === 0) {
+            document.getElementById('target-matrix-tbody').innerHTML = `
+                <tr>
+                    <td colspan="9" class="text-center py-4">
+                        <div class="text-muted">
+                            <i class="bi bi-people" style="font-size: 2rem;"></i>
+                            <p class="mt-2">{{ __('No salesmen found for this period') }}</p>
+                            <small class="text-muted">{{ __('Try adjusting your filters or selecting a different period') }}</small>
+                        </div>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        // Render the matrix
+        renderTargetMatrix();
+        updateMatrixStats();
+    } catch (error) {
+        console.error('Error loading target matrix:', error);
+        document.getElementById('target-matrix-tbody').innerHTML = `
+            <tr>
+                <td colspan="9" class="text-center py-4 text-danger">
+                    <i class="bi bi-exclamation-triangle" style="font-size: 2rem;"></i>
+                    <p class="mt-2">{{ __('Error loading target matrix') }}</p>
+                    <small class="text-muted">${error.message}</small>
+                </td>
+            </tr>
+        `;
+        showAlert('Failed to load target matrix. Please try again.', 'error');
+    }
+}
+
+// Test authentication
+async function testAuth() {
+    try {
+        const response = await fetch('/api/test-auth', fetchOptions);
+        const data = await response.json();
+        console.log('Auth test result:', data);
+        return data.authenticated;
+    } catch (error) {
+        console.error('Auth test failed:', error);
+        return false;
+    }
+}
+
+// Initialize event listeners
+document.addEventListener('DOMContentLoaded', function() {
+    // Test authentication first
+    testAuth().then(isAuthenticated => {
+        console.log('User authenticated:', isAuthenticated);
+        if (!isAuthenticated) {
+            showAlert('Authentication failed. Please refresh the page and try again.', 'error');
+        }
+    });
+    
+    // Initialize period selection
+    checkPeriodStatus();
+    
+    // Event listeners for period selection
+    document.getElementById('target_year').addEventListener('change', checkPeriodStatus);
+    document.getElementById('target_month').addEventListener('change', checkPeriodStatus);
+    
+    // Load master data for filters
+    loadMasterData();
+    
+    // Prevent accidental page leave with unsaved changes
+    window.addEventListener('beforeunload', function(e) {
+        if (hasChanges) {
+            e.preventDefault();
+            e.returnValue = '';
+        }
+    });
+});
+
+function renderTargetMatrix() {
+    const tbody = document.getElementById('target-matrix-tbody');
+    tbody.innerHTML = '';
+    
+    if (!matrixData || matrixData.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="9" class="text-center py-4">
+                    <div class="text-muted">
+                        <i class="bi bi-people" style="font-size: 2rem;"></i>
+                        <p class="mt-2 mb-0">{{ __('No salesmen found for this period') }}</p>
+                        <small class="text-muted">{{ __('Try adjusting your filters or selecting a different period') }}</small>
+                    </div>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
+    matrixData.forEach((item, index) => {
+        const row = document.createElement('tr');
+        const isReadonly = !currentPeriod.isOpen;
+        const amount = item.amount || '';
+        
+        row.innerHTML = `
+            <td class="text-center align-middle" style="white-space: nowrap;">
+                <small class="text-muted fw-medium">${index + 1}</small>
+            </td>
+            <td class="text-center align-middle" style="white-space: nowrap;">
+                                                <code class="bg-primary-subtle text-primary px-2 py-1 rounded small">${item.salesman_code}</code>
+            </td>
+            <td class="align-middle" style="white-space: nowrap;">
+                <span class="fw-medium text-dark">${item.salesman_name}</span>
+            </td>
+            <td class="text-center align-middle" style="white-space: nowrap;">
+                <span class="badge ${getClassificationBadge(item.classification)} px-2">
+                    ${getClassificationText(item.classification)}
+                </span>
+            </td>
+            <td class="text-center align-middle" style="white-space: nowrap;">
+                <span class="text-muted small">${item.region}</span>
+            </td>
+            <td class="text-center align-middle" style="white-space: nowrap;">
+                <span class="text-muted small">${item.channel}</span>
+            </td>
+            <td class="text-center align-middle" style="white-space: nowrap;">
+                <span class="text-muted small">${item.supplier}</span>
+            </td>
+            <td class="text-center align-middle" style="white-space: nowrap;">
+                <span class="text-muted small">${item.category}</span>
+            </td>
+            <td class="text-center align-middle" style="white-space: nowrap;">
+                <div class="input-group input-group-sm" style="width: 120px;">
+                    <span class="input-group-text px-2">$</span>
+                    <input type="number" 
+                           class="form-control target-amount text-end" 
+                           data-index="${index}"
+                           value="${amount}"
+                           min="0" 
+                           step="0.01"
+                           placeholder="0.00"
+                           ${isReadonly ? 'readonly' : ''}
+                           onchange="updateTargetAmount(${index}, this.value)"
+                           onfocus="this.select()"
+                           style="font-size: 0.875rem;">
+                </div>
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+function getClassificationBadge(classification) {
+    switch(classification?.toLowerCase()) {
+        case 'food': return 'bg-success-subtle text-success';
+        case 'non_food': return 'bg-info-subtle text-info';
+        case 'both': return 'bg-warning-subtle text-warning';
+        default: return 'bg-secondary-subtle text-secondary';
+    }
+}
+
+function getClassificationText(classification) {
+    switch(classification?.toLowerCase()) {
+        case 'food': return 'Food';
+        case 'non_food': return 'Non-Food';
+        case 'both': return 'Both';
+        default: return 'Unknown';
+    }
+}
+
+function updateTargetAmount(index, value) {
+    if (matrixData[index]) {
+        matrixData[index].amount = parseFloat(value) || 0;
+        hasChanges = true;
+        updateMatrixStats();
+        
+        // Enable save button if there are changes
+        const saveBtn = document.getElementById('saveMatrixBtn');
+        if (saveBtn) {
+            saveBtn.disabled = false;
+        }
+    }
+}
+
+function updateMatrixStats() {
+    const totalRows = matrixData.length;
+    const filledRows = matrixData.filter(item => item.amount && item.amount > 0).length;
+    const totalAmount = matrixData.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+    
+    document.getElementById('total-rows').textContent = totalRows;
+    document.getElementById('filled-rows').textContent = filledRows;
+    document.getElementById('total-amount').textContent = totalAmount.toLocaleString('en-US', {minimumFractionDigits: 2});
+}
+
+function fillAllAmounts() {
+    const amount = prompt('{{ __("Enter amount to fill for all salesmen:") }}');
+    if (amount !== null && !isNaN(amount) && parseFloat(amount) >= 0) {
+        matrixData.forEach((item, index) => {
+            item.amount = parseFloat(amount);
+            const input = document.querySelector(`input[data-index="${index}"]`);
+            if (input) input.value = amount;
+        });
+        hasChanges = true;
+        updateMatrixStats();
+        document.getElementById('saveMatrixBtn').disabled = false;
+    }
+}
+
+function clearAllAmounts() {
+    if (confirm('{{ __("Are you sure you want to clear all target amounts?") }}')) {
+        matrixData.forEach((item, index) => {
+            item.amount = 0;
+            const input = document.querySelector(`input[data-index="${index}"]`);
+            if (input) input.value = '';
+        });
+        hasChanges = true;
+        updateMatrixStats();
+        document.getElementById('saveMatrixBtn').disabled = false;
+    }
+}
+
+function resetMatrix() {
+    if (hasChanges && !confirm('{{ __("You have unsaved changes. Are you sure you want to reset?") }}')) {
+        return;
+    }
+    loadTargetMatrix();
+    hasChanges = false;
+}
+
+async function saveAllTargets() {
+    try {
+        if (!currentPeriod.isOpen) {
+            showAlert('error', '{{ __("Cannot save targets. Period is closed.") }}');
+            return;
+        }
+        
+        const targetsToSave = matrixData.filter(item => item.amount && item.amount > 0);
+        
+        if (targetsToSave.length === 0) {
+            showAlert('error', '{{ __("No targets to save. Please enter at least one target amount.") }}');
+            return;
+        }
+        
+        const saveBtn = document.getElementById('saveMatrixBtn');
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>{{ __("Saving...") }}';
+        
+        const response = await fetch('/api/targets/bulk-save', {
+            ...fetchOptions,
+        method: 'POST',
+            body: JSON.stringify({
+                year: currentPeriod.year,
+                month: currentPeriod.month,
+                targets: targetsToSave
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to save targets');
+        }
+        
+        const result = await response.json();
+        hasChanges = false;
+        showAlert('success', `{{ __("Successfully saved") }} ${result.saved_count} {{ __("targets") }}`);
+        loadTargetMatrix(); // Reload to show updated data
+    } catch (error) {
+        console.error('Error saving targets:', error);
+        showAlert('error', '{{ __("An error occurred while saving targets") }}');
+    } finally {
+        const saveBtn = document.getElementById('saveMatrixBtn');
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = '<i class="bi bi-check-circle me-1"></i>{{ __("Save All Targets") }}';
+    }
+}
+
+function exportTargets() {
+    const filters = {
+        year: document.getElementById('target_year').value,
+        month: document.getElementById('target_month').value,
+        classification: document.getElementById('filter_classification').value,
+        region_id: document.getElementById('filter_region').value,
+        channel_id: document.getElementById('filter_channel').value,
+        supplier_id: document.getElementById('filter_supplier').value,
+        category_id: document.getElementById('filter_category').value,
+        salesman_id: document.getElementById('filter_salesman').value,
+    };
+    
+    if (!filters.year || !filters.month) {
+        showAlert('error', '{{ __("Please select year and month first") }}');
+        return;
+    }
+    
+    const queryParams = new URLSearchParams(filters);
+    window.open(`/api/targets/export?${queryParams}`, '_blank');
+}
+
+// Utility functions
+function showAlert(message, type = 'info') {
+    const alertClass = type === 'success' ? 'alert-success' : 
+                      type === 'error' ? 'alert-danger' : 'alert-info';
+    
+    const alertHtml = `
+        <div class="alert ${alertClass} alert-dismissible fade show" role="alert">
+            <i class="bi bi-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-triangle' : 'info-circle'} me-2"></i>
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+    
+    // Insert alert at the top of the content
+    const firstCard = document.querySelector('.card');
+    if (firstCard) {
+        firstCard.insertAdjacentHTML('beforebegin', alertHtml);
+        
+        // Auto-dismiss after 5 seconds
+        setTimeout(() => {
+            const alert = document.querySelector('.alert');
+            if (alert) {
+                const bsAlert = new bootstrap.Alert(alert);
+                bsAlert.close();
+            }
+        }, 5000);
+    }
+}
+</script>
+@endpush
+
+<!-- Upload Targets Modal -->
+@if(auth()->user()->isAdmin())
+<div class="modal fade" id="uploadModal" tabindex="-1" aria-labelledby="uploadModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="uploadModalLabel">
+                    <i class="bi bi-upload me-2"></i>{{ __('Upload Targets') }}
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="uploadForm" enctype="multipart/form-data">
+                @csrf
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="uploadFile" class="form-label">{{ __('Select CSV File') }}</label>
+                        <input type="file" class="form-control" id="uploadFile" name="file" accept=".csv,.xlsx,.xls" required>
+                        <div class="form-text">{{ __('Supported formats: CSV, Excel (.xlsx, .xls)') }}</div>
+                    </div>
+                    
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label for="uploadYear" class="form-label">{{ __('Target Year') }} <span class="text-danger">*</span></label>
+                            <select class="form-select" id="uploadYear" name="year" required>
+                                <option value="">{{ __('Select Year') }}</option>
+                                @for($y = date('Y'); $y <= date('Y') + 2; $y++)
+                                    <option value="{{ $y }}" {{ $y == date('Y') ? 'selected' : '' }}>{{ $y }}</option>
+                                @endfor
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="uploadMonth" class="form-label">{{ __('Target Month') }} <span class="text-danger">*</span></label>
+                            <select class="form-select" id="uploadMonth" name="month" required>
+                                <option value="">{{ __('Select Month') }}</option>
+                                @for($m = 1; $m <= 12; $m++)
+                                    <option value="{{ $m }}" {{ $m == date('n') ? 'selected' : '' }}>
+                                        {{ date('F', mktime(0, 0, 0, $m, 1)) }}
+                                    </option>
+                                @endfor
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <h6 class="mb-0"><i class="bi bi-info-circle me-2"></i>{{ __('File Format Requirements:') }}</h6>
+                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="downloadTemplate()">
+                                <i class="bi bi-download me-1"></i>{{ __('Download Template') }}
+                            </button>
+                        </div>
+                        <ul class="mb-0">
+                            <li>{{ __('Use the template above or create CSV with headers: Employee Code, Amount (required)') }}</li>
+                            <li>{{ __('Optional columns: Salesman Name, Region, Channel, Supplier, Category') }}</li>
+                            <li>{{ __('Excel files (.xlsx, .xls) will be converted automatically') }}</li>
+                            <li>{{ __('Existing targets for the same period will be updated') }}</li>
+                            <li>{{ __('Invalid rows will be skipped with detailed error report') }}</li>
+                        </ul>
+                    </div>
+                    
+                    <div id="uploadProgress" style="display: none;">
+                        <div class="progress mb-2">
+                            <div class="progress-bar" role="progressbar" style="width: 0%"></div>
+                        </div>
+                        <small class="text-muted">{{ __('Processing...') }}</small>
+                    </div>
+                    
+                    <div id="uploadResults" style="display: none;"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="bi bi-x-circle me-1"></i>{{ __('Cancel') }}
+                    </button>
+                    <button type="submit" class="btn btn-primary" id="uploadBtn">
+                        <i class="bi bi-upload me-1"></i>{{ __('Upload Targets') }}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('uploadForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const uploadBtn = document.getElementById('uploadBtn');
+    const uploadProgress = document.getElementById('uploadProgress');
+    const uploadResults = document.getElementById('uploadResults');
+    
+    // Validate form
+    const file = document.getElementById('uploadFile').files[0];
+    const year = document.getElementById('uploadYear').value;
+    const month = document.getElementById('uploadMonth').value;
+    
+    if (!file || !year || !month) {
+        showAlert('Please fill in all required fields.', 'error');
+        return;
+    }
+    
+    // Show progress
+    uploadBtn.disabled = true;
+    uploadBtn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>{{ __("Uploading...") }}';
+    uploadProgress.style.display = 'block';
+    uploadResults.style.display = 'none';
+    
+    try {
+        const response = await fetch('/api/targets/upload', {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+            },
+            credentials: 'same-origin',
+            body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            uploadResults.innerHTML = `
+                <div class="alert alert-success">
+                    <h6><i class="bi bi-check-circle me-2"></i>{{ __('Upload Successful!') }}</h6>
+                    <ul class="mb-0">
+                        <li>{{ __('Processed:') }} ${result.processed || 0} {{ __('rows') }}</li>
+                        <li>{{ __('Created:') }} ${result.created || 0} {{ __('new targets') }}</li>
+                        <li>{{ __('Updated:') }} ${result.updated || 0} {{ __('existing targets') }}</li>
+                        ${result.errors ? `<li class="text-warning">{{ __('Errors:') }} ${result.errors} {{ __('rows skipped') }}</li>` : ''}
+                    </ul>
+                </div>
+            `;
+            
+            // Refresh the target matrix if it's loaded
+            if (typeof loadTargetMatrix === 'function') {
+                setTimeout(() => {
+                    loadTargetMatrix();
+                }, 1000);
+            }
+            
+            showAlert(`{{ __('Successfully uploaded') }} ${result.created + result.updated} {{ __('targets') }}`, 'success');
+        } else {
+            throw new Error(result.message || 'Upload failed');
+        }
+        
+    } catch (error) {
+        console.error('Upload error:', error);
+        uploadResults.innerHTML = `
+            <div class="alert alert-danger">
+                <h6><i class="bi bi-exclamation-triangle me-2"></i>{{ __('Upload Failed') }}</h6>
+                <p class="mb-0">${error.message}</p>
+            </div>
+        `;
+        showAlert('{{ __("Upload failed. Please check the file format and try again.") }}', 'error');
+    } finally {
+        uploadBtn.disabled = false;
+        uploadBtn.innerHTML = '<i class="bi bi-upload me-1"></i>{{ __("Upload Targets") }}';
+        uploadProgress.style.display = 'none';
+        uploadResults.style.display = 'block';
+    }
+});
+
+// Reset form when modal is closed
+document.getElementById('uploadModal').addEventListener('hidden.bs.modal', function() {
+    document.getElementById('uploadForm').reset();
+    document.getElementById('uploadResults').style.display = 'none';
+    document.getElementById('uploadProgress').style.display = 'none';
+});
+
+// Download template function
+function downloadTemplate() {
+    // Show loading state
+    const btn = event.target;
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>{{ __("Generating...") }}';
+    
+    try {
+        // Use the backend API to download template with real data
+        window.open('/api/targets/template', '_blank');
+        
+        // Show success message
+        showAlert('{{ __("Template download started! The file contains real employee data for easy completion.") }}', 'success');
+        
+    } catch (error) {
+        console.error('Template download error:', error);
+        showAlert('{{ __("Template download failed. Please try again.") }}', 'error');
+    } finally {
+        // Restore button state
+        setTimeout(() => {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }, 1000);
+    }
+}
+</script>
+@endif
+@endsection 

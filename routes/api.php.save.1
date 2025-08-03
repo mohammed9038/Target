@@ -2,8 +2,7 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Api\V1\AuthController;
-use App\Http\Controllers\Api\V1\RegionController;
+use App\Http\Controllers\Api\V1\AuthConXuse App\Http\Controllers\Api\V1\RegionController;
 use App\Http\Controllers\Api\V1\ChannelController;
 use App\Http\Controllers\Api\V1\SupplierController;
 use App\Http\Controllers\Api\V1\CategoryController;
@@ -77,11 +76,11 @@ Route::prefix('v1')->group(function () {
         
         // Master Data CRUD (Admin only)
         Route::middleware('admin')->group(function () {
-            Route::apiResource('regions', RegionController::class)->names('api.regions');
-            Route::apiResource('channels', ChannelController::class)->names('api.channels');
-            Route::apiResource('suppliers', SupplierController::class)->names('api.suppliers');
-            Route::apiResource('categories', CategoryController::class)->names('api.categories');
-            Route::apiResource('salesmen', SalesmanController::class)->names('api.salesmen');
+            Route::apiResource('regions', RegionController::class);
+            Route::apiResource('channels', ChannelController::class);
+            Route::apiResource('suppliers', SupplierController::class);
+            Route::apiResource('categories', CategoryController::class);
+            Route::apiResource('salesmen', SalesmanController::class);
             
             // Periods management (Admin only)
             Route::get('/periods', [PeriodController::class, 'index']);
@@ -110,7 +109,7 @@ Route::prefix('v1')->group(function () {
         Route::post('/targets/bulk', [TargetController::class, 'bulkUpsert']);
         Route::post('/targets/upload', [TargetController::class, 'upload']);
         Route::post('/targets/bulk-save', [TargetController::class, 'bulkSave']);
-        Route::apiResource('targets', TargetController::class)->names('api.targets');
+        Route::apiResource('targets', TargetController::class);
 
         // Reports (Admin and Manager with scope)
         Route::get('/reports/summary', [ReportController::class, 'summary']);

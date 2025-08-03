@@ -1,8 +1,6 @@
-@extends('layouts.app')
+<?php $__env->startSection('title', __('Sales Targets')); ?>
 
-@section('title', __('Sales Targets'))
-
-@section('content')
+<?php $__env->startSection('content'); ?>
 <div id="alert-container" style="position: fixed; top: 20px; right: 20px; z-index: 9999; min-width: 300px;"></div>
 <!-- Compact Page Header -->
 <div class="d-flex justify-content-between align-items-center mb-3">
@@ -11,23 +9,28 @@
             <div class="p-1 rounded-circle bg-primary bg-opacity-10 me-2">
                 <i class="bi bi-bullseye text-primary small"></i>
             </div>
-            {{ __('Sales Targets') }}
+            <?php echo e(__('Sales Targets')); ?>
+
         </h1>
-        <p class="text-muted mb-0 ms-4 small">{{ __('Set and manage sales targets for your team members') }}</p>
+        <p class="text-muted mb-0 ms-4 small"><?php echo e(__('Set and manage sales targets for your team members')); ?></p>
     </div>
     <div class="d-flex gap-1 flex-wrap">
         <button type="button" class="btn btn-success btn-sm" onclick="saveAllTargets()" id="saveAllBtn">
-            <i class="bi bi-check-circle me-1"></i>{{ __('Save All') }}
+            <i class="bi bi-check-circle me-1"></i><?php echo e(__('Save All')); ?>
+
         </button>
         <div class="btn-group btn-group-sm" role="group">
             <button type="button" class="btn btn-outline-primary" onclick="exportTargets()">
-                <i class="bi bi-file-earmark-spreadsheet me-1"></i>{{ __('Export') }}
+                <i class="bi bi-file-earmark-spreadsheet me-1"></i><?php echo e(__('Export')); ?>
+
             </button>
             <button type="button" class="btn btn-outline-primary" onclick="showUploadModal()">
-                <i class="bi bi-upload me-1"></i>{{ __('Upload') }}
+                <i class="bi bi-upload me-1"></i><?php echo e(__('Upload')); ?>
+
             </button>
             <button type="button" class="btn btn-outline-primary" onclick="downloadTemplate()">
-                <i class="bi bi-download me-1"></i>{{ __('Template') }}
+                <i class="bi bi-download me-1"></i><?php echo e(__('Template')); ?>
+
             </button>
         </div>
     </div>
@@ -39,64 +42,66 @@
         <!-- Period and Filters in One Row -->
         <div class="row g-2 align-items-end">
             <div class="col-lg-1 col-md-2">
-                <label for="target_year" class="form-label small text-muted mb-1">{{ __('Year') }}</label>
+                <label for="target_year" class="form-label small text-muted mb-1"><?php echo e(__('Year')); ?></label>
                 <select class="form-select form-select-sm" id="target_year" name="year">
-                    <option value="">{{ __('Year') }}</option>
-                    @for($y = date('Y'); $y <= date('Y') + 2; $y++)
-                        <option value="{{ $y }}" {{ $y == date('Y') ? 'selected' : '' }}>{{ $y }}</option>
-                    @endfor
+                    <option value=""><?php echo e(__('Year')); ?></option>
+                    <?php for($y = date('Y'); $y <= date('Y') + 2; $y++): ?>
+                        <option value="<?php echo e($y); ?>" <?php echo e($y == date('Y') ? 'selected' : ''); ?>><?php echo e($y); ?></option>
+                    <?php endfor; ?>
                 </select>
             </div>
             <div class="col-lg-1 col-md-2">
-                <label for="target_month" class="form-label small text-muted mb-1">{{ __('Month') }}</label>
+                <label for="target_month" class="form-label small text-muted mb-1"><?php echo e(__('Month')); ?></label>
                 <select class="form-select form-select-sm" id="target_month" name="month">
-                    <option value="">{{ __('Month') }}</option>
-                    @for($m = 1; $m <= 12; $m++)
-                        <option value="{{ $m }}" {{ $m == date('n') ? 'selected' : '' }}>
-                            {{ date('M', mktime(0, 0, 0, $m, 1)) }}
+                    <option value=""><?php echo e(__('Month')); ?></option>
+                    <?php for($m = 1; $m <= 12; $m++): ?>
+                        <option value="<?php echo e($m); ?>" <?php echo e($m == date('n') ? 'selected' : ''); ?>>
+                            <?php echo e(date('M', mktime(0, 0, 0, $m, 1))); ?>
+
                         </option>
-                    @endfor
+                    <?php endfor; ?>
                 </select>
             </div>
             <div class="col-lg-1 col-md-2">
                 <button class="btn btn-primary btn-sm w-100" id="loadMatrixBtn" onclick="loadTargetMatrix()">
-                    <i class="bi bi-table me-1"></i>{{ __('Load') }}
+                    <i class="bi bi-table me-1"></i><?php echo e(__('Load')); ?>
+
                 </button>
             </div>
             <div class="col-lg-1 col-md-2">
-                <label for="filter_classification" class="form-label small text-muted mb-1">{{ __('Type') }}</label>
+                <label for="filter_classification" class="form-label small text-muted mb-1"><?php echo e(__('Type')); ?></label>
                 <select class="form-select form-select-sm" id="filter_classification">
-                    <option value="">{{ __('All') }}</option>
+                    <option value=""><?php echo e(__('All')); ?></option>
                 </select>
             </div>
             <div class="col-lg-2 col-md-2">
-                <label for="filter_region" class="form-label small text-muted mb-1">{{ __('Region') }}</label>
+                <label for="filter_region" class="form-label small text-muted mb-1"><?php echo e(__('Region')); ?></label>
                 <select class="form-select form-select-sm" id="filter_region">
-                    <option value="">{{ __('All Regions') }}</option>
+                    <option value=""><?php echo e(__('All Regions')); ?></option>
                 </select>
             </div>
             <div class="col-lg-2 col-md-2">
-                <label for="filter_channel" class="form-label small text-muted mb-1">{{ __('Channel') }}</label>
+                <label for="filter_channel" class="form-label small text-muted mb-1"><?php echo e(__('Channel')); ?></label>
                 <select class="form-select form-select-sm" id="filter_channel">
-                    <option value="">{{ __('All Channels') }}</option>
+                    <option value=""><?php echo e(__('All Channels')); ?></option>
                 </select>
             </div>
             <div class="col-lg-2 col-md-2">
-                <label for="filter_supplier" class="form-label small text-muted mb-1">{{ __('Supplier') }}</label>
+                <label for="filter_supplier" class="form-label small text-muted mb-1"><?php echo e(__('Supplier')); ?></label>
                 <select class="form-select form-select-sm" id="filter_supplier">
-                    <option value="">{{ __('All Suppliers') }}</option>
+                    <option value=""><?php echo e(__('All Suppliers')); ?></option>
                 </select>
             </div>
             <div class="col-lg-1 col-md-2">
-                <label for="filter_category" class="form-label small text-muted mb-1">{{ __('Category') }}</label>
+                <label for="filter_category" class="form-label small text-muted mb-1"><?php echo e(__('Category')); ?></label>
                 <select class="form-select form-select-sm" id="filter_category">
-                    <option value="">{{ __('All') }}</option>
+                    <option value=""><?php echo e(__('All')); ?></option>
                 </select>
             </div>
             <div class="col-lg-1 col-md-2">
-                <label for="filter_salesman" class="form-label small text-muted mb-1">{{ __('Salesman') }}</label>
+                <label for="filter_salesman" class="form-label small text-muted mb-1"><?php echo e(__('Salesman')); ?></label>
                 <select class="form-select form-select-sm" id="filter_salesman">
-                    <option value="">{{ __('All') }}</option>
+                    <option value=""><?php echo e(__('All')); ?></option>
                 </select>
             </div>
         </div>
@@ -108,19 +113,21 @@
     <div class="card-header bg-white d-flex justify-content-between align-items-center py-2">
         <h6 class="card-title mb-0 fw-semibold d-flex align-items-center">
             <i class="bi bi-grid-3x3-gap text-success me-2"></i>
-            {{ __('Target Matrix') }}
+            <?php echo e(__('Target Matrix')); ?>
+
         </h6>
         <small class="text-muted">
-            <i class="bi bi-info-circle me-1"></i>{{ __('Enter target amounts') }}
+            <i class="bi bi-info-circle me-1"></i><?php echo e(__('Enter target amounts')); ?>
+
         </small>
     </div>
     <div class="card-body p-0">
         <!-- Loading State -->
         <div id="matrix-loading" class="text-center py-3" style="display: none;">
             <div class="spinner-border text-primary mb-2" role="status">
-                <span class="visually-hidden">{{ __('Loading...') }}</span>
+                <span class="visually-hidden"><?php echo e(__('Loading...')); ?></span>
             </div>
-            <small class="text-muted">{{ __('Loading target matrix...') }}</small>
+            <small class="text-muted"><?php echo e(__('Loading target matrix...')); ?></small>
         </div>
         
         <!-- Matrix Container -->
@@ -130,25 +137,32 @@
                     <thead class="table-dark">
                         <tr>
                             <th class="py-2 px-3 small">
-                                <i class="bi bi-person-badge me-1"></i>{{ __('Salesman') }}
+                                <i class="bi bi-person-badge me-1"></i><?php echo e(__('Salesman')); ?>
+
                             </th>
                             <th class="py-2 px-3 small">
-                                <i class="bi bi-geo-alt me-1"></i>{{ __('Region') }}
+                                <i class="bi bi-geo-alt me-1"></i><?php echo e(__('Region')); ?>
+
                             </th>
                             <th class="py-2 px-3 small">
-                                <i class="bi bi-diagram-3 me-1"></i>{{ __('Channel') }}
+                                <i class="bi bi-diagram-3 me-1"></i><?php echo e(__('Channel')); ?>
+
                             </th>
                             <th class="py-2 px-3 small">
-                                <i class="bi bi-building me-1"></i>{{ __('Supplier') }}
+                                <i class="bi bi-building me-1"></i><?php echo e(__('Supplier')); ?>
+
                             </th>
                             <th class="py-2 px-3 small">
-                                <i class="bi bi-tags me-1"></i>{{ __('Category') }}
+                                <i class="bi bi-tags me-1"></i><?php echo e(__('Category')); ?>
+
                             </th>
                             <th class="py-2 px-3 small">
-                                <i class="bi bi-diagram-2 me-1"></i>{{ __('Type') }}
+                                <i class="bi bi-diagram-2 me-1"></i><?php echo e(__('Type')); ?>
+
                             </th>
                             <th class="py-2 px-3 small text-center">
-                                <i class="bi bi-currency-dollar me-1"></i>{{ __('Amount') }}
+                                <i class="bi bi-currency-dollar me-1"></i><?php echo e(__('Amount')); ?>
+
                             </th>
                         </tr>
                     </thead>
@@ -162,17 +176,20 @@
             <div class="mb-3">
                 <i class="bi bi-table text-muted" style="font-size: 2rem;"></i>
             </div>
-            <h6 class="text-dark mb-2">{{ __('No Data Available') }}</h6>
-            <p class="text-muted small mb-3">{{ __('Please select year, month and click "Load Matrix" to view targets.') }}</p>
+            <h6 class="text-dark mb-2"><?php echo e(__('No Data Available')); ?></h6>
+            <p class="text-muted small mb-3"><?php echo e(__('Please select year, month and click "Load Matrix" to view targets.')); ?></p>
             <div class="d-flex justify-content-center gap-1 flex-wrap">
                 <small class="badge bg-primary bg-opacity-10 text-primary px-2 py-1">
-                    <i class="bi bi-1-circle me-1"></i>{{ __('Select Period') }}
+                    <i class="bi bi-1-circle me-1"></i><?php echo e(__('Select Period')); ?>
+
                 </small>
                 <small class="badge bg-success bg-opacity-10 text-success px-2 py-1">
-                    <i class="bi bi-2-circle me-1"></i>{{ __('Apply Filters') }}
+                    <i class="bi bi-2-circle me-1"></i><?php echo e(__('Apply Filters')); ?>
+
                 </small>
                 <small class="badge bg-info bg-opacity-10 text-info px-2 py-1">
-                    <i class="bi bi-3-circle me-1"></i>{{ __('Load Matrix') }}
+                    <i class="bi bi-3-circle me-1"></i><?php echo e(__('Load Matrix')); ?>
+
                 </small>
             </div>
         </div>
@@ -184,27 +201,27 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">{{ __('Upload Targets') }}</h5>
+                <h5 class="modal-title"><?php echo e(__('Upload Targets')); ?></h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
                 <form id="uploadForm" enctype="multipart/form-data">
                     <div class="mb-3">
-                        <label for="upload_file" class="form-label">{{ __('Select CSV File') }}</label>
+                        <label for="upload_file" class="form-label"><?php echo e(__('Select CSV File')); ?></label>
                         <input type="file" class="form-control" id="upload_file" name="csv_file" accept=".csv" required>
                     </div>
                 </form>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('Cancel') }}</button>
-                <button type="button" class="btn btn-primary" onclick="uploadTargets()">{{ __('Upload') }}</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?php echo e(__('Cancel')); ?></button>
+                <button type="button" class="btn btn-primary" onclick="uploadTargets()"><?php echo e(__('Upload')); ?></button>
             </div>
         </div>
     </div>
 </div>
-@endsection
+<?php $__env->stopSection(); ?>
 
-@push('scripts')
+<?php $__env->startPush('scripts'); ?>
 <script>
     console.log("🎯 TARGET PAGE SCRIPT LOADED - V3.1 FINAL");
 
@@ -768,4 +785,6 @@
         });
     });
 </script>
-@endpush
+<?php $__env->stopPush(); ?>
+
+<?php echo $__env->make('layouts.app', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?><?php /**PATH /home/u925629539/domains/mkalrawi.com/public_html/target/resources/views/targets/index.blade.php ENDPATH**/ ?>

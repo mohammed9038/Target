@@ -1,0 +1,61 @@
+# Laravel .gitignore
+
+/vendor
+/node_modules
+/public/hot
+/public/storage
+/storage/*.key
+/storage/app/*
+!/storage/app/.gitkeep
+/storage/framework/cache/*
+!/storage/framework/cache/.gitkeep
+/storage/framework/sessions/*
+!/storage/framework/sessions/.gitkeep
+/storage/framework/views/*
+!/storage/framework/views/.gitkeep
+/storage/logs/*
+!/storage/logs/.gitkeep
+
+# Environment files
+.env
+.env.backup
+.env.local
+.env.production
+
+# IDE files
+.idea
+.vscode
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Backup files
+*.save
+*.save.*
+*.bak
+*.tmp
+
+# Debug and temporary files
+cookies.txt
+error_output.html
+full_error.html
+*.log
+*.zip
+
+# Composer
+composer.phar
+/vendor/
+composer.lock.backup
+
+# Node.js
+npm-debug.log
+yarn-error.log

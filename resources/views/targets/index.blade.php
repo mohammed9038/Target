@@ -2,36 +2,249 @@
 
 @section('title', __('Sales Targets'))
 
+@push('styles')
+<style>
+    /* Page-specific optimizations */
+    .targets-page {
+        animation: fadeIn 0.5s ease-out;
+    }
+    
+    .filter-panel {
+        background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+        border: 1px solid #e2e8f0;
+        border-radius: 16px;
+        box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        margin-bottom: 2rem;
+        overflow: hidden;
+    }
+    
+    .matrix-container {
+        position: relative;
+        background: white;
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+    }
+    
+    .matrix-table {
+        border-collapse: separate;
+        border-spacing: 0;
+        width: 100%;
+    }
+    
+    .matrix-table thead th {
+        background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+        color: white;
+        font-weight: 600;
+        text-align: center;
+        padding: 1rem 0.5rem;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        border: none;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+    
+    .matrix-table tbody td {
+        padding: 0.75rem 0.5rem;
+        border-bottom: 1px solid #f1f5f9;
+        border-right: 1px solid #f1f5f9;
+        text-align: center;
+        font-size: 0.875rem;
+        transition: background-color 0.2s ease;
+    }
+    
+    .matrix-table tbody tr:hover {
+        background-color: #f8fafc;
+    }
+    
+    .matrix-table tbody tr.modified {
+        background-color: #fef3c7;
+        border-left: 4px solid #f59e0b;
+    }
+    
+    .target-input {
+        width: 80px;
+        padding: 0.375rem 0.5rem;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        text-align: center;
+        font-size: 0.875rem;
+        font-weight: 500;
+        transition: all 0.2s ease;
+        background: white;
+    }
+    
+    .target-input:focus {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgb(59 130 246 / 0.1);
+        outline: none;
+        transform: scale(1.05);
+    }
+    
+    .target-input.modified {
+        border-color: #f59e0b;
+        background-color: #fefbf2;
+    }
+    
+    .action-buttons {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+    
+    .stat-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+        border: 1px solid #e2e8f0;
+        transition: all 0.3s ease;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px 0 rgb(0 0 0 / 0.15);
+    }
+    
+    .stat-value {
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+    
+    .stat-label {
+        color: #6b7280;
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+    
+    /* Loading states */
+    .loading-container {
+        position: relative;
+        min-height: 400px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .loading-spinner {
+        display: inline-block;
+        width: 2rem;
+        height: 2rem;
+        border: 3px solid #e2e8f0;
+        border-top: 3px solid #3b82f6;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+    
+    /* Responsive design */
+    @media (max-width: 768px) {
+        .action-buttons {
+            flex-direction: column;
+            width: 100%;
+        }
+        
+        .action-buttons .btn {
+            width: 100%;
+            justify-content: center;
+        }
+        
+        .matrix-table {
+            font-size: 0.75rem;
+        }
+        
+        .target-input {
+            width: 60px;
+            font-size: 0.75rem;
+        }
+        
+        .stat-card {
+            text-align: center;
+        }
+    }
+    
+    @media (max-width: 576px) {
+        .matrix-container {
+            margin: 0 -1rem;
+            border-radius: 0;
+        }
+        
+        .filter-panel {
+            margin: 0 -1rem 1rem;
+            border-radius: 0;
+        }
+    }
+</style>
+@endpush
+
 @section('content')
-<div id="alert-container" style="position: fixed; top: 20px; right: 20px; z-index: 9999; min-width: 300px;"></div>
-<!-- Compact Page Header -->
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <div>
-        <h1 class="h4 mb-1 fw-bold d-flex align-items-center">
-            <div class="p-1 rounded-circle bg-primary bg-opacity-10 me-2">
-                <i class="bi bi-bullseye text-primary small"></i>
+<div class="targets-page">
+    <!-- Toast Container -->
+    <div id="toast-container" class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1200;"></div>
+
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between align-items-start mb-4">
+        <div class="animate-on-scroll">
+            <h1 class="h3 fw-bold text-gradient mb-2 d-flex align-items-center">
+                <div class="p-2 rounded-circle bg-primary bg-opacity-10 me-3">
+                    <i class="bi bi-bullseye text-primary fs-4"></i>
+                </div>
+                {{ __('Sales Targets Management') }}
+            </h1>
+            <p class="text-muted mb-0 ms-5">
+                {{ __('Set and manage sales targets for your team members with real-time updates') }}
+            </p>
+        </div>
+        
+        <div class="action-buttons animate-on-scroll">
+            <button type="button" class="btn btn-success btn-enhanced" onclick="saveAllTargets()" id="saveAllBtn">
+                <i class="bi bi-check-circle me-2"></i>{{ __('Save All Changes') }}
+            </button>
+            <div class="btn-group" role="group">
+                <button type="button" class="btn btn-outline-primary btn-enhanced" onclick="exportTargets()">
+                    <i class="bi bi-file-earmark-spreadsheet me-2"></i>{{ __('Export') }}
+                </button>
+                <button type="button" class="btn btn-outline-primary btn-enhanced" onclick="showUploadModal()">
+                    <i class="bi bi-upload me-2"></i>{{ __('Import') }}
+                </button>
+                <button type="button" class="btn btn-outline-secondary btn-enhanced" onclick="downloadTemplate()">
+                    <i class="bi bi-download me-2"></i>{{ __('Template') }}
+                </button>
             </div>
-            {{ __('Sales Targets') }}
-        </h1>
-        <p class="text-muted mb-0 ms-4 small">{{ __('Set and manage sales targets for your team members') }}</p>
-    </div>
-    <div class="d-flex gap-1 flex-wrap">
-        <button type="button" class="btn btn-success btn-sm" onclick="saveAllTargets()" id="saveAllBtn">
-            <i class="bi bi-check-circle me-1"></i>{{ __('Save All') }}
-        </button>
-        <div class="btn-group btn-group-sm" role="group">
-            <button type="button" class="btn btn-outline-primary" onclick="exportTargets()">
-                <i class="bi bi-file-earmark-spreadsheet me-1"></i>{{ __('Export') }}
-            </button>
-            <button type="button" class="btn btn-outline-primary" onclick="showUploadModal()">
-                <i class="bi bi-upload me-1"></i>{{ __('Upload') }}
-            </button>
-            <button type="button" class="btn btn-outline-primary" onclick="downloadTemplate()">
-                <i class="bi bi-download me-1"></i>{{ __('Template') }}
-            </button>
         </div>
     </div>
-</div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4 animate-on-scroll">
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="stat-card">
+                <div class="stat-value text-primary" id="totalTargets">-</div>
+                <div class="stat-label">{{ __('Total Targets') }}</div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="stat-card">
+                <div class="stat-value text-success" id="completedTargets">-</div>
+                <div class="stat-label">{{ __('Completed') }}</div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="stat-card">
+                <div class="stat-value text-warning" id="pendingTargets">-</div>
+                <div class="stat-label">{{ __('Pending') }}</div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="stat-card">
+                <div class="stat-value text-info" id="totalValue">-</div>
+                <div class="stat-label">{{ __('Total Value') }}</div>
+            </div>
+        </div>
+    </div>
 
 <!-- Compact Filters Panel -->
 <div class="card border-0 shadow-sm mb-3">
